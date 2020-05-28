@@ -305,7 +305,7 @@ class SkyMap(numpy.ndarray):
 
     @property
     def resolution(self):
-        """Angular resolution (in arcminutes) of pixels in this `SkyMap`
+        """Angular resolution (arcminutes) of pixels in this `SkyMap`
 
         This returns an instance of `~astropy.units.Quantity` with explicit
         units, which can then be converted by the user as-needed.
