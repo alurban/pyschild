@@ -475,7 +475,7 @@ class SkyMap(numpy.ndarray):
     # -- analysis and visualization ------------------------
 
     def saturate(self, limit=1, inplace=True):
-        """Cap off pixels in this `SkyMap` that exceed a given limit
+        """Saturate pixels in this `SkyMap` that exceed a given limit
 
         Parameters
         ----------
@@ -489,8 +489,7 @@ class SkyMap(numpy.ndarray):
         Returns
         -------
         out : `SkyMap`
-            a copy of this instance whose peak value
-            is leveled off at ``limit``
+            a version of this instance whose peak value saturates at ``limit``
         """
         out = self if inplace else self.copy()
         out[self.value > limit] = limit
