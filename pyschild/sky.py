@@ -78,6 +78,38 @@ class SkyMap(numpy.ndarray):
     ValueError
         if the ``value`` provided has more than one axis
 
+    Example
+    -------
+    `SkyMap` objects are subclasses of `~numpy.ndarray` and can be created
+    in the same way:
+
+    >>> import numpy
+    >>> from pyschild import SkyMap
+    >>> skymap = SkyMap(numpy.zeros(12))
+
+    This creates a (very coarse) pixelization of the sky populated with
+    zeroes and a HEALPix ``nside`` parameter of 1:
+
+    >>> print(skymap.nside)
+
+    Users may also create partial sky maps, with the caveat that an explicit
+    pixel index is also needed in this use case:
+
+    >>> partial_skymap = SkyMap(numpy.zeros(3),
+                                pindex=(0, 3, 7),
+                                nside=1)
+
+    Note, the ``nside`` parameter must be an integer power of 2, and for a
+    complete all-sky map the number of pixels is `12 * nside**2`. Other
+    parameters, such as the angular resolution, pixel area, and total area,
+    are also available, e.g.:
+
+    >>> print(skymap.resolution)
+    >>> print(skymap.pixarea)
+    >>> print(skymap.area)
+
+    (For an all-sky map, ``skymap.area`` will amount ``4 * numpy.pi``.
+
     Notes
     -----
     This class definition assumes RING pixel ordering by default, mainly
@@ -327,7 +359,7 @@ class SkyMap(numpy.ndarray):
         return radius.to("arcmin")
 
     @property
-    def area(self):
+    def pixarea(self):
         """Solid area (square degrees) subtended by a pixel in this `SkyMap`
 
         This returns an instance of `~astropy.units.Quantity` with explicit
@@ -337,6 +369,18 @@ class SkyMap(numpy.ndarray):
             self.nside,
             degrees=True,
         ) * units.Unit("deg") ** 2
+
+    @property
+    def area(self):
+        """Solid area (square degrees) subtended by this `SkyMap`
+
+        If the sky map is complete, i.e. if ``self.partial == False``, this
+        property should essentially return ``4 * numpy.pi``.
+
+        This returns an instance of `~astropy.units.Quantity` with explicit
+        units, which can then be converted by the user as-needed.
+        """
+        return self.size * self.pixarea
 
     @property
     def angles(self):
