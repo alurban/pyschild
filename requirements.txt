@@ -1,0 +1,6 @@
+# PySchild core requirements
+astropy >= 3.0.0
+healpy
+matplotlib >= 3.0.0
+numpy >= 1.16.0
+scipy >= 1.2.0
