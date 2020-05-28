@@ -108,7 +108,11 @@ class SkyMap(numpy.ndarray):
     >>> print(skymap.pixarea)
     >>> print(skymap.area)
 
-    (For an all-sky map, ``skymap.area`` will amount ``4 * numpy.pi``.
+    For an all-sky map, ``skymap.area`` will amount to ``4 * numpy.pi``.
+
+    Finally, this class also provides file I/O, e.g.:
+
+    >>> skymap.write("all-sky.fits")
 
     Notes
     -----

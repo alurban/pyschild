@@ -231,6 +231,22 @@ class StarField(object):
         normalized values between 0 (dim) and 1 (bright) representing the
         Matplotlib color gradient of each star
 
+    Example
+    -------
+    To simulate a field of stars with roughly the same number as are visible
+    to the naked eye around Earth:
+
+    >>> from pyschild import StarField
+    >>> field = StarField()
+
+    This allows for tabulation of each star's visible properties:
+
+    >>> print(field.table)
+
+    as well as for file I/O:
+
+    >>> field.write("star-field.csv")
+
     Notes
     -----
     If individual attributes are specified directly, these will override
