@@ -1,2 +1,2 @@
 # pyschild
-A Python package for visualizing the Schwarzschild spacetime
+A python package for visualizing the Schwarzschild spacetime
