@@ -79,6 +79,7 @@ COPYRIGHT_REGEX = re.compile(r"Copyright[\S ]+(?P<years>\d\d\d\d([, \d-]+)?)")
 
 def _parse_years(years):
     """Parse string of ints include ranges into a `list` of `int`
+
     Source: https://stackoverflow.com/a/6405228/1307974
     """
     result = []
@@ -95,13 +96,14 @@ def _parse_years(years):
 
 def _format_years(years):
     """Format a list of ints into a string including ranges
+
     Source: https://stackoverflow.com/a/9471386/1307974
     """
     def sub(x):
         return x[1] - x[0]
 
     ranges = []
-    for k, iterable in groupby(enumerate(sorted(years)), sub):
+    for (_, iterable) in groupby(enumerate(sorted(years)), sub):
         rng = list(iterable)
         if len(rng) == 1:
             s = str(rng[0][1])
@@ -130,7 +132,7 @@ def update_copyright(path, year):
 def update_all_copyright(year):
     files = subprocess.check_output([
         "git", "grep", "-l", "-E", r"(\#|\*) Copyright",
-    ]).strip().splitlines()
+    ], shell=False).strip().splitlines()
     ignore = {
         "docs/_static/js/copybutton.js",
     }

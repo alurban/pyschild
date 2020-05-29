@@ -50,63 +50,66 @@ In short, contributions to PySchild are made via pull requests from GitHub
 users' forks of the main [pyschild repository](https://github.com/pyschild/pyschild).
 The basic idea is to use the `master` branch of your fork as a way of keeping
 your fork up-to-date with other contributors' changes that have been merged
-into the main repo, then adding/changing new features on a dedicated _feature
-branch_ for each development project.
+into the main repo, then adding/changing new features on a dedicated *feature
+branch* for each development project.
 
 If this is your first contribution, make sure you have a GitHub account
 (signing up is free of charge) and set up a development sandbox as follows:
 
-- Create the fork (if needed) by clicking _Fork_ in the upper-right corner of
-  <https://github.com/pyschild/pyschild/>. (This only needs to be done once,
-  ever.)
-- From the command-line, if you haven't already, clone your fork (replace
-  `<username>` with your GitHub username):
+*   Create the fork (if needed) by clicking *Fork* in the upper-right corner of
+    <https://github.com/pyschild/pyschild/>. (This only needs to be done once,
+    ever.)
 
-  ```bash
-  git clone https://github.com/<username>/pyschild.git pyschild-fork
-  cd pyschild-fork
-  ```
+*   From the command-line, if you haven't already, clone your fork (replace
+    `<username>` with your GitHub username):
+
+    ```bash
+    git clone https://github.com/<username>/pyschild.git pyschild-fork
+    cd pyschild-fork
+    ```
   
-- Link your cloned fork to the upstream "main" repo:
+*   Link your cloned fork to the upstream "main" repo:
 
-  ```bash
-  git remote add upstream https://github.com/pyschild/pyschild.git
-  ```
+    ```bash
+    git remote add upstream https://github.com/pyschild/pyschild.git
+    ```
 
 For each development project:
 
-- Pull changes from the upstream "main" repo onto your fork's `master` branch
-  to pick up other people's changes, then push to your remote to update your
-  fork on github.com
+*   Pull changes from the upstream "main" repo onto your fork's `master` branch
+    to pick up other people's changes, then push to your remote to update your
+    fork on github.com
 
-  ```bash
-  git pull --rebase upstream master
-  git push
-  ```
+    ```bash
+    git pull --rebase upstream master
+    git push
+    ```
 
-- Create a new branch for this project with a short, descriptive name
+*   Create a new branch for this project with a short, descriptive name
 
-  ```bash
-  git checkout -b my-project
-  ```
-  
-- Make commits to this branch
-- Push changes to your remote on github.com
+    ```bash
+    git checkout -b my-project
+    ```
 
-  ```bash
-  git push -u origin my-project
-  ```
+*   Make commits to this branch
 
-- Open a *merge request* (also known as a *pull request*) on github.com and
-  tag the lead developer (@alurban) to initiate an interactive code review
-- When the request is merged, you should "delete the source branch" (there's a
-  button) to keep your fork clean, and delete it from your local clone:
+*   Push changes to your remote on github.com
 
-  ```bash
-  git checkout master
-  git branch -D my-project
-  git pull upstream master
-  ```
+    ```bash
+    git push -u origin my-project
+    ```
+
+*   Open a *merge request* (also known as a *pull request*) on github.com and
+    tag the lead developer (@alurban) to initiate an interactive code review
+
+*   When the request is merged, you should "delete the source branch" (there's a
+    button) to keep your fork clean, and delete it from your local clone:
+
+    ```bash
+    git checkout master
+    git branch -D my-project
+    git pull upstream master
+    ```
 
 That's all there is to it!
 

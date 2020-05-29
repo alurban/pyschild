@@ -54,12 +54,12 @@ def _uniform_sphere(n):
 
 
 def _brightness_from_mag(mapp):
-    """Convenience function to determine the Matplotlib color scale index
-    from apparent bolometric magnitude
+    """Infer visual brightness from apparent magnitude
 
-    This utility presumes objects fainter than magnitude 6.5 are not visible
-    to the naked eye, while those brighter than magnitude 0 saturate the
-    observer's viewing device.
+    This is a convenience function to determine the Matplotlib color scale
+    index from apparent bolometric magnitude, presuming objects fainter than
+    magnitude 6.5 are not visible to the naked eye, while those brighter than
+    magnitude 0 saturate the observer's viewing device.
     """
     too_dim = (mapp > 6.5)
     grad = numpy.logical_and(mapp <= 6.5, mapp > 0)
@@ -106,6 +106,7 @@ def inherit_table_io(cls):
 # -- classes ------------------------------------------------------------------
 
 class Star(object):
+
     """Base class for star objects, including convenience methods for
     gravitational lensing and viewing under a point-spread function
 
@@ -135,6 +136,8 @@ class Star(object):
     """
     def __init__(self, theta=numpy.pi/2, phi=0,
                  mag=0, angrad=ARCMIN, brightness=1):
+        """Initialize this `Star`
+        """
         self.theta = theta
         self.phi = phi
         self.mag = mag
@@ -192,6 +195,7 @@ class Star(object):
 
 @inherit_table_io
 class StarField(object):
+
     """Iterable representation of an all-sky field of stars, with convenience
     methods for representing star images on the sky
 
@@ -258,6 +262,8 @@ class StarField(object):
         an object class designed to handle individual stars in the field
     """
     def __init__(self, nstars=1e4, mdim=6.5, mbright=-2, **kwargs):
+        """Initialize this `StarField`
+        """
         nstars = int(nstars)
         # angular coordinates
         (theta, phi) = _uniform_sphere(nstars)
@@ -378,7 +384,9 @@ class StarField(object):
     # -- representation and visualization ------------------
 
     def sky(self, nside=2**12, nest=True, info="All-sky mock star field"):
-        """Return a map of the sky in Hierarchical Equal Area isoLatitude
+        """Represent this `StarField` as a fixed observer's sky
+
+        Returns a map of the sky in Hierarchical Equal Area isoLatitude
         Pixelization (HEALPix) format
 
         Parameters

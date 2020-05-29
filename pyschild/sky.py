@@ -32,6 +32,7 @@ __author__ = "Alex Urban <alexander.urban@ligo.org>"
 # FIXME: include spherical harmonic tools and rotations, then
 #        write a ray tracer
 class SkyMap(numpy.ndarray):
+
     """Representation of the sky for a fixed observer in Hierarchical Equal
     Area isoLatitude Pixelization (HEALPix) format
 
@@ -158,6 +159,8 @@ class SkyMap(numpy.ndarray):
         return new
 
     def __array_finalize__(self, obj):
+        """Handle view casting and creation from a template
+        """
         # if a new object, do nothing
         if obj is None:
             return
@@ -170,6 +173,8 @@ class SkyMap(numpy.ndarray):
         self.__metadata_finalize__(obj)
 
     def __metadata_finalize__(self, obj, force=False):
+        """Populate metadata, if available
+        """
         # based on gwpy.types.array.Array.__metadata_finalize__,
         # credit: Duncan Macleod
         # apply metadata from obj to self if creating a new object
@@ -192,11 +197,13 @@ class SkyMap(numpy.ndarray):
                     setattr(self, _attr, val)
 
     def __deepcopy__(self, memo):
-        # ensure ``copy.deepcopy`` does not return a bare NumPy array
+        """Ensure `copy.deepcopy()` does not return a bare `~numpy.ndarray`
+        """
         return self.copy()
 
     def __getitem__(self, key):
-        # properly re-size indices when handling slices
+        """Properly re-size indices/values when handling slices
+        """
         if isinstance(key, list):
             key = tuple(key)
         new = super().__getitem__(key)
@@ -204,13 +211,15 @@ class SkyMap(numpy.ndarray):
                           info=self.info, nest=self.nest, dtype=self.dtype)
 
     def __add__(self, value):
-        # handle the case when adding another array element-wise
+        """Handle the case when adding another array element-wise
+        """
         new = super().__add__(value)
         return type(self)(new, pindex=self.pindex, nside=self.nside,
                           info=self.info, nest=self.nest, dtype=self.dtype)
 
     def __sub__(self, value):
-        # handle the case when subtracting another array element-wise
+        """Handle the case when subtracting another array element-wise
+        """
         new = super().__sub__(value)
         return type(self)(new, pindex=self.pindex, info=self.info,
                           nest=self.nest, dtype=self.dtype)
@@ -353,8 +362,10 @@ class SkyMap(numpy.ndarray):
 
     @property
     def pixrad(self):
-        """Maximum angular distance (arcminutes) between any pixel center
-        and its corners
+        """Angular size of a pixel in this `SkyMap`
+
+        Returns the maximum angular distance (arcminutes) between any pixel
+        center and its corners
 
         This returns an instance of `~astropy.units.Quantity` with explicit
         units, which can then be converted by the user as-needed.
@@ -405,10 +416,11 @@ class SkyMap(numpy.ndarray):
 
     @property
     def directions(self):
-        """Vector components indicating direction from the origin to a point
-        on the unit sphere, for each pixel in this `SkyMap`
+        """Directions corresponding to pixels of this `SkyMap`
 
-        Returns a tuple of (unitless) Cartesian ``(x, y, z)`` components, e.g.
+        Returns a tuple of Cartesian vector components for each pixel
+        indicating direction from the origin to a point on the unit
+        sphere, e.g.
 
         >>> (x, y, z) = skymap.directions
 
@@ -544,7 +556,9 @@ class SkyMap(numpy.ndarray):
         return out
 
     def pencil(self, theta, phi, angrad, **kwargs):
-        """Return a subset of this `SkyMap` that covers an angular disc on
+        """Query a pencil beam from this `SkyMap`
+
+        Returns the subset of this `SkyMap` that covers an angular disc on
         the sky (i.e., a pencil beam)
 
         Parameters
