@@ -67,7 +67,7 @@ If this is your first contribution, make sure you have a GitHub account
     git clone https://github.com/<username>/pyschild.git pyschild-fork
     cd pyschild-fork
     ```
-  
+
 *   Link your cloned fork to the upstream "main" repo:
 
     ```bash

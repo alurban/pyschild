@@ -22,6 +22,7 @@
 import os
 import healpy
 import numpy
+import pathlib
 import pytest
 import shutil
 
@@ -33,6 +34,7 @@ from ..sky import SkyMap
 
 __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
+PARENT = pathlib.Path(__file__).parent.absolute()
 SEED = 4
 
 
@@ -162,7 +164,8 @@ class TestSkyMap(object):
     def test_read(self):
         """Test `SkyMap.read`
         """
-        cmap = self.TEST_CLASS.read('data/complete-skymap.fits')
+        source = os.path.join(PARENT, 'data/complete-skymap.fits')
+        cmap = self.TEST_CLASS.read(source)
         assert isinstance(cmap, self.TEST_CLASS)
         assert cmap.npix == cmap.size
 

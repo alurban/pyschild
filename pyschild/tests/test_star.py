@@ -21,6 +21,7 @@
 
 import os
 import numpy
+import pathlib
 import pytest
 import shutil
 
@@ -34,6 +35,7 @@ from .. import (Star, StarField, SkyMap)
 __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
 ARCMIN = float(Unit("arcmin").to("rad"))
+PARENT = pathlib.Path(__file__).parent.absolute()
 
 
 class TestStar(object):
@@ -158,7 +160,8 @@ class TestStarField(object):
                 in self.TEST_CLASS.read.__doc__)
 
         # read and verify test data
-        field = self.TEST_CLASS.read('data/star-field.csv')
+        source = os.path.join(PARENT, 'data/star-field.csv')
+        field = self.TEST_CLASS.read(source)
         assert isinstance(field, self.TEST_CLASS)
         assert field.size == 50
 
