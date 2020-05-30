@@ -31,8 +31,9 @@ __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
 # FIXME: include spherical harmonic tools and rotations, then
 #        write a ray tracer
+# TODO:  there are known issues with slicing (slices aren't iterable) and
+#        with reading/writing partial sky maps
 class SkyMap(numpy.ndarray):
-
     """Representation of the sky for a fixed observer in Hierarchical Equal
     Area isoLatitude Pixelization (HEALPix) format
 
@@ -113,7 +114,7 @@ class SkyMap(numpy.ndarray):
 
     Finally, this class also provides file I/O, e.g.:
 
-    >>> skymap.write("all-sky.fits")
+    >>> skymap.write('all-sky.fits')
 
     Notes
     -----
@@ -123,6 +124,14 @@ class SkyMap(numpy.ndarray):
     harmonic transforms, while the NESTED ordering scheme optimizes nearest
     neighbor searches, for more information see
     https://healpix.sourceforge.io/pdf/intro.pdf.
+
+    References
+    ----------
+    [1] Healpy, a Python package to handle pixelated data on the unit
+        sphere: https://healpy.readthedocs.io/en/latest/index.html
+
+    [2] The NASA HEALPix format specification,
+        https://healpix.jpl.nasa.gov
 
     See also
     --------
@@ -527,9 +536,14 @@ class SkyMap(numpy.ndarray):
         healpy.write_map
             the underlying FITS file writer
         """
-        data = self.explicit if self.partial else self.value
+        if self.partial:
+            data = type(self)(numpy.zeros(self.npix), info=self.info,
+                              nest=self.nest, dtype=self.dtype)
+            data[self.pindex] += self.value
+        else:
+            data = self.value
         healpy.write_map(target, data, coord=coord, nest=self.nest,
-                         dtype=self.dtype, partial=self.partial,
+                         dtype=self.dtype, partial=False,
                          column_names=[column], overwrite=overwrite)
 
     # -- analysis and visualization ------------------------

@@ -22,15 +22,15 @@
 import numpy
 from numpy.random import rand
 
-from astropy import units
 from astropy.io import registry
 from astropy.table import Table
+from astropy.units import Unit
 
 from .sky import SkyMap
 
 __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
-ARCMIN = float(units.Unit("arcmin").to("rad"))
+ARCMIN = float(Unit("arcmin").to("rad"))
 
 
 # -- utilities ----------------------------------------------------------------
@@ -106,7 +106,6 @@ def inherit_table_io(cls):
 # -- classes ------------------------------------------------------------------
 
 class Star(object):
-
     """Base class for star objects, including convenience methods for
     gravitational lensing and viewing under a point-spread function
 
@@ -128,11 +127,6 @@ class Star(object):
     brightness : `float`, optional
         normalized value between 0 (dim) and 1 (bright) representing the
         Matplotlib color gradient, default: 1
-
-    Notes
-    -----
-    The `direction` attribute records a tuple interpreted as Cartesian
-    coordinates on the unit sphere centered on the observer.
     """
     def __init__(self, theta=numpy.pi/2, phi=0,
                  mag=0, angrad=ARCMIN, brightness=1):
@@ -195,7 +189,6 @@ class Star(object):
 
 @inherit_table_io
 class StarField(object):
-
     """Iterable representation of an all-sky field of stars, with convenience
     methods for representing star images on the sky
 
@@ -220,10 +213,12 @@ class StarField(object):
     Alternatively, the following parameters may also be specified by-hand:
 
     theta : `~numpy.ndarray`, optional
-        zenith coordinates (radians) of each star
+        zenith coordinates (radians) of each star,
+        required if ``phi`` is given
 
     phi : `~numpy.ndarray`, optional
-        azimuth coordinates (radians) of each star
+        azimuth coordinates (radians) of each star,
+        required if ``theta`` is given
 
     mag : `~numpy.ndarray`, optional
         apparent visual magnitudes of each star
@@ -234,6 +229,11 @@ class StarField(object):
     brightness : `~numpy.ndarray`, optional
         normalized values between 0 (dim) and 1 (bright) representing the
         Matplotlib color gradient of each star
+
+    Raises
+    ------
+    KeyError
+        if either ``theta`` or ``phi`` are given without the other
 
     Example
     -------
@@ -249,7 +249,7 @@ class StarField(object):
 
     as well as for file I/O:
 
-    >>> field.write("star-field.csv")
+    >>> field.write('star-field.csv')
 
     Notes
     -----
@@ -266,23 +266,25 @@ class StarField(object):
         """
         nstars = int(nstars)
         # angular coordinates
-        (theta, phi) = _uniform_sphere(nstars)
-        self.theta = kwargs.pop(
-            'theta',
-            theta)
-        self.phi = kwargs.pop(
-            'phi',
-            phi)
+        try:
+            self.theta = numpy.array(kwargs['theta'])
+            self.phi = numpy.array(kwargs['phi'])
+        except KeyError as exc:
+            if ('theta' in kwargs) != ('phi' in kwargs):
+                raise type(exc)("Both theta and phi arguments are required, "
+                                "or draw from a uniform distribution")
+            (self.theta, self.phi) = _uniform_sphere(nstars)
         # visual properties
-        self.mag = kwargs.pop(
+        self.size = len(self.theta)
+        self.mag = numpy.array(kwargs.pop(
             'mag',
-            (mdim - mbright) * rand(nstars) + mbright)
-        self.angrad = kwargs.pop(
-            'angrad',
-            ARCMIN * (5 * rand(nstars) + 1))
-        self.brightness = kwargs.pop(
+            (mdim - mbright) * rand(self.size) + mbright))
+        self.brightness = numpy.array(kwargs.pop(
             'brightness',
-            _brightness_from_mag(self.mag))
+            _brightness_from_mag(self.mag)))
+        self.angrad = numpy.array(kwargs.pop(
+            'angrad',
+            ARCMIN * (5 * rand(self.size) + 1)))
 
     def __iter__(self):
         """Iterate over this `StarField`
@@ -437,7 +439,7 @@ class StarField(object):
         # populate a map with star images
         out = SkyMap(
             numpy.zeros(12 * nside**2),
-            info="All-sky mock star field",
+            info=info,
             nest=nest,
         )
         for star in self:

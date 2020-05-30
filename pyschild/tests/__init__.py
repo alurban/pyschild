@@ -16,22 +16,5 @@
 # You should have received a copy of the GNU General Public License
 # along with PySchild.  If not, see <http://www.gnu.org/licenses/>.
 
-"""A python package for visualizing the Schwarzschild spacetime
-
-PySchild is an education-focused `Python <http://www.python.org>`_ package
-providing visualization tools for simple, stationary black hole spacetimes.
-It is intended for use by amateur science enthusiasts, undergraduates, and
-graduate students alike, with easy-to-follow tutorials at every step.
+"""Tests for :mod:`pyschild`
 """
-
-from ._version import get_versions
-
-from .sky import SkyMap
-from .star import (Star, StarField)
-
-# set package metadata
-__version__ = get_versions()['version']
-__author__ = "Alex Urban <alexander.urban@ligo.org>"
-__all__ = ['SkyMap', 'Star', 'StarField']
-
-del get_versions
