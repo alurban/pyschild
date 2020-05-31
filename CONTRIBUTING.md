@@ -119,7 +119,7 @@ over multiple merge requests.
 
 ### Testing
 
-PySchild has a comprehensive testing suite, covering about 95% of the codebase.
+PySchild has a comprehensive testing suite, covering about 98% of the codebase.
 All code contributions should be accompanied by unit tests to be executed with
 [`pytest`](https://docs.pytest.org/en/latest/), and should cover all new or
 modified lines as measured by [CodeCov](https://codecov.io).
