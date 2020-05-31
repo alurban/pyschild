@@ -2,6 +2,7 @@ language: minimal
 
 env:
   global:
+    - COVERAGE_STORAGE="json"
     - CONDA_PKGS_DIRS="${HOME}/.cache/conda/pkgs"
 
 matrix:
@@ -39,19 +40,9 @@ install:
   # create a conda environment
   - travis_retry conda create --quiet --yes --name pyschildci python=${PYTHON_VERSION} pip setuptools
   - travis_retry conda activate pyschildci
-  - travis_retry conda install --quiet --yes --update-deps --name pyschildci
-        coverage
-        codecov
-        flake8
-        pytest>=3.3.0
-        pytest-cov>=2.4.0
-  # install a bunch of the larger/compiled runtime dependencies with conda
-  - travis_retry conda install --quiet --yes --update-deps --name pyschildci
-        astropy>=3.0.0
-        healpy
-        matplotlib>=3.0.0
-        numpy>=1.16.0
-        scipy>=1.2.0
+  - travis_retry python ./ci/parse-conda-requirements.py requirements.txt -o conda-reqs.txt
+  - travis_retry conda install --quiet --yes --update-all --name pyschildci --file conda-reqs.txt
+  - rm -f conda-reqs.txt  # clean up
   # install this version
   - python -m pip install --editable .
 
