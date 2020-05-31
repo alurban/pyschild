@@ -127,10 +127,11 @@ class TestSkyMap(object):
         assert self.create(copy=True).flags.owndata is True
 
     def test_del(self):
-        """Test deletion and re-construction of _metadata_slots properties
+        """Test deletion and re-construction of `_metadata_slots` properties
         """
         skymap = self.TEST_SKY_MAP
         del skymap.info
+        del skymap.info  # delete twice to test two logical pathways
         del skymap.nest
         del skymap.nside
         del skymap.pindex
@@ -140,6 +141,23 @@ class TestSkyMap(object):
         assert not skymap.nest
         assert skymap.nside == self.NSIDE
         assert_array_equal(skymap.pindex, numpy.arange(self.NPIX))
+
+    def test_repr(self):
+        """Test representations of `SkyMap` instances
+        """
+        skymap = self.TEST_SKY_MAP
+        string = str(skymap)
+        repres = repr(skymap)
+        assert string.startswith('SkyMap(')
+        assert string.endswith(')')
+        assert "info: None," in string
+        assert "nest: False," in string
+        assert "nside: 2," in string
+        assert repres.startswith('<SkyMap(')
+        assert repres.endswith(')>')
+        assert "info=None," in repres
+        assert "nest=False," in repres
+        assert "nside=2," in repres
 
     def test_deepcopy(self):
         """Test that a deep copy of `SkyMap` is also a `SkyMap`

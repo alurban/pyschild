@@ -7,5 +7,6 @@ scipy >= 1.2.0
 # test requirements
 pytest >= 3.3.0
 pytest-cov >= 2.4.0
+codecov
 coverage
 flake8
