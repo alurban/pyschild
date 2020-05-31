@@ -142,7 +142,7 @@ class SkyMap(numpy.ndarray):
     healpy
         a package designed to handle pixelated data on the unit sphere
     """
-    _metadata_slots = ('info', 'nest', 'nside', 'npix', 'pindex')
+    _metadata_slots = ('info', 'nest', 'nside', 'pindex')
 
     def __new__(cls, value, nside=None, pindex=None, info=None,
                 nest=False, dtype=None, copy=True, subok=False):
@@ -162,7 +162,6 @@ class SkyMap(numpy.ndarray):
         new.info = info
         new.nest = nest
         new.nside = nside or healpy.npix2nside(new.size)
-        new.npix = healpy.nside2npix(new.nside)
         new.pindex = (pindex if pindex is not None
                       else numpy.arange(new.size))
         return new
@@ -170,13 +169,14 @@ class SkyMap(numpy.ndarray):
     def __array_finalize__(self, obj):
         """Handle view casting and creation from a template
         """
-        # if a new object, do nothing
-        if obj is None:
+        # if an empty array, do nothing
+        if numpy.size(obj) == 0:
             return
 
         # if the array is not scalar or 1-dimensional, throw a fit
         if len(numpy.shape(obj)) > 1:
-            raise ValueError("Only 1-dimensional data arrays are supported")
+            raise ValueError("Only scalar or 1-dimensional data arrays "
+                             "are supported")
 
         # update metadata
         self.__metadata_finalize__(obj)
@@ -213,8 +213,6 @@ class SkyMap(numpy.ndarray):
     def __getitem__(self, key):
         """Properly re-size indices/values when handling slices
         """
-        if isinstance(key, list):
-            key = tuple(key)
         new = super().__getitem__(key)
         return type(self)(new, pindex=numpy.array(key), nside=self.nside,
                           info=self.info, nest=self.nest, dtype=self.dtype)
@@ -233,18 +231,79 @@ class SkyMap(numpy.ndarray):
         return type(self)(new, pindex=self.pindex, info=self.info,
                           nest=self.nest, dtype=self.dtype)
 
+    # -- display -------------------------------------------
+
+    def _repr_choose(self, choice):
+        """Represent this `SkyMap` for print/str or repr
+
+        This is based on `~gwpy.types.array.Array._repr_helper`,
+        credit: Duncan Macleod
+        """
+        opstr = ('=' if choice is repr else ': ')
+
+        # get prefix and suffix
+        prefix = '{}('.format(type(self).__name__)
+        suffix = ')'
+        if choice is repr:
+            prefix = '<{}'.format(prefix)
+            suffix += '>'
+
+        indent = ' ' * len(prefix)
+
+        # format value
+        metadata = []
+        arrstr = numpy.array2string(
+            self.value,
+            separator=', ',
+            prefix=prefix
+        )
+
+        # format other new metadata
+        attrs = self._metadata_slots
+        for key in attrs:
+            val = getattr(self, key)
+            thisindent = indent + ' ' * (len(key) + len(opstr))
+            metadata.append((
+                key.lstrip('_'),
+                choice(val).replace('\n', '\n{}'.format(thisindent)),
+            ))
+        metadata = (',\n{}'.format(indent)).join(
+            '{0}{1}{2}'.format(key, opstr, value)
+            for (key, value) in metadata)
+
+        return "{0}{1}\n{2}{3}{4}".format(
+            prefix, arrstr, indent, metadata, suffix)
+
+    def __repr__(self):
+        """Return a representation of this `SkyMap`
+
+        This magic method represents each metadata object appropriately after
+        the core `~numpy.ndarray`
+        """
+        return self._repr_choose(repr)
+
+    def __str__(self):
+        """Return a printable string format representation of this `SkyMap`
+
+        This magic method prints each metadata object appropriately after
+        the core `~numpy.ndarray`
+        """
+        return self._repr_choose(str)
+
+    # -- new properties ------------------------------------
+
     # info
     @property
     def info(self):
         try:
             return self._info
         except AttributeError:
-            self._info = ""
+            self._info = None
             return self._info
 
     @info.setter
     def info(self, val):
-        self._info = ("" if val is None else str(val))
+        self._info = (None if val is None else str(val))
 
     @info.deleter
     def info(self):
@@ -293,26 +352,6 @@ class SkyMap(numpy.ndarray):
         except AttributeError:
             pass
 
-    # npix
-    @property
-    def npix(self):
-        try:
-            return self._npix
-        except AttributeError:
-            self._npix = healpy.nside2npix(self.nside)
-            return self._npix
-
-    @npix.setter
-    def npix(self, val):
-        self._npix = val
-
-    @npix.deleter
-    def npix(self):
-        try:
-            del self._npix
-        except AttributeError:
-            pass
-
     # pindex
     @property
     def pindex(self):
@@ -334,6 +373,12 @@ class SkyMap(numpy.ndarray):
             pass
 
     # -- other properties ----------------------------------
+
+    @property
+    def npix(self):
+        """Number of pixels on an all-sky map of equal resolution
+        """
+        return healpy.nside2npix(self.nside)
 
     @property
     def partial(self):

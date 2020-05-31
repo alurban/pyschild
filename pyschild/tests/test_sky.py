@@ -26,7 +26,8 @@ import pathlib
 import pytest
 import shutil
 
-from numpy.testing import assert_array_equal
+from numpy.testing import (assert_array_equal,
+                           assert_raises)
 
 from astropy import units
 
@@ -81,19 +82,64 @@ class TestSkyMap(object):
         with pytest.raises(TypeError):
             self.TEST_CLASS()
 
+        # test non-trivial empty constructor
+        empty = self.TEST_CLASS([])
+        assert empty.size == 0
+        assert empty.nside == 0
+        with pytest.raises(ZeroDivisionError):  # zero-size pixels
+            empty.area
+        with pytest.raises(ValueError):  # invalid nside
+            empty.directions
+
+        # test with invalid shape
+        with pytest.raises(ValueError) as exc:
+            self.TEST_CLASS([[0], [1]])
+        assert str(exc.value) == ("Only scalar or 1-dimensional data arrays "
+                                  "are supported")
+
         # test with some data
         skymap = self.TEST_SKY_MAP
         assert isinstance(skymap, self.TEST_CLASS)
         assert_array_equal(skymap.value, self.data)
 
-        # test with view casting
+        # test view casting
         skycast = self.data.view(self.TEST_CLASS)
         assert isinstance(skycast, self.TEST_CLASS)
         assert_array_equal(skycast.value, self.data)
 
+        # test creation from template
+        skyslice = skymap[20::2]
+        assert not (skyslice is skymap)
+        for attr in skymap._metadata_slots:
+            val = getattr(skymap, attr)
+            if val is None:
+                assert val is getattr(skyslice, attr)
+            elif isinstance(val, numpy.ndarray):
+                assert_raises(AssertionError,
+                              assert_array_equal,
+                              val,
+                              getattr(skyslice, attr))
+            else:
+                assert val == getattr(skyslice, attr)
+
         # test that copy=True ensures owndata
         assert self.create(copy=False).flags.owndata is False
         assert self.create(copy=True).flags.owndata is True
+
+    def test_del(self):
+        """Test deletion and re-construction of _metadata_slots properties
+        """
+        skymap = self.TEST_SKY_MAP
+        del skymap.info
+        del skymap.nest
+        del skymap.nside
+        del skymap.pindex
+
+        # ensure these attributes return to their default values
+        assert skymap.info is None
+        assert not skymap.nest
+        assert skymap.nside == self.NSIDE
+        assert_array_equal(skymap.pindex, numpy.arange(self.NPIX))
 
     def test_deepcopy(self):
         """Test that a deep copy of `SkyMap` is also a `SkyMap`
@@ -139,7 +185,7 @@ class TestSkyMap(object):
         """Test basic, default attributes are set on creation
         """
         skymap = self.TEST_SKY_MAP
-        assert skymap.info == ""
+        assert skymap.info is None
         assert (not skymap.nest)
         assert skymap.nside == self.NSIDE
         assert skymap.npix == self.NPIX
