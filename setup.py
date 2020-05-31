@@ -51,8 +51,11 @@ install_requires = [
 
 # test dependencies
 tests_require = [
-    "pytest >= 3.3.0",
-    "pytest-cov >= 2.4.0",
+    'pytest >= 3.3.0',
+    'pytest-cov >= 2.4.0',
+    'codecov',
+    'coverage',
+    'flake8',
 ]
 
 # -- run setup ----------------------------------------------------------------
@@ -62,7 +65,7 @@ setup(
     name='pyschild',
     provides=['pyschild'],
     version=VERSION,
-    description="A python package for gravitational-wave astrophysics",
+    description="A python package for visualizing Schwarzschild spacetime",
     long_description=longdesc,
     long_description_content_type='text/markdown',
     author='Alex Urban',

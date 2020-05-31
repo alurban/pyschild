@@ -107,6 +107,10 @@ class TestSkyMap(object):
         assert isinstance(skycast, self.TEST_CLASS)
         assert_array_equal(skycast.value, self.data)
 
+        newsky = skymap.view(self.TEST_CLASS)
+        assert isinstance(newsky, self.TEST_CLASS)
+        assert_array_equal(newsky.value, self.data)
+
         # test creation from template
         skyslice = skymap[20::2]
         assert not (skyslice is skymap)
@@ -130,10 +134,15 @@ class TestSkyMap(object):
         """Test deletion and re-construction of `_metadata_slots` properties
         """
         skymap = self.TEST_SKY_MAP
+
+        # delete twice to test two logical pathways
         del skymap.info
-        del skymap.info  # delete twice to test two logical pathways
+        del skymap.info
+        del skymap.nest
         del skymap.nest
         del skymap.nside
+        del skymap.nside
+        del skymap.pindex
         del skymap.pindex
 
         # ensure these attributes return to their default values
