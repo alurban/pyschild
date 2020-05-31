@@ -28,12 +28,11 @@ mistakes and from openly sharing with others. That's how we all improve, and
 as a community we are happy to help others learn.
 
 Being an open source contributor also doesn't just mean writing code. You can
-help out enormously by writing documentation, tests, or even giving feedback
-about the project, which very much includes feedback about the contribution
-process. This kind of input may even be the most valuable to the project in the
-long term, because you're coming into it with fresh eyes, so you can more
-easily see the errors and assumptions that seasoned contributors have glossed
-over.
+help out enormously by writing documentation, tests, or giving feedback about
+the project, which very much includes feedback about the contribution process.
+This kind of input may even be the most valuable to the project in the long
+term, because you're coming into it with fresh eyes, so you can more easily
+see the errors and assumptions that seasoned contributors have glossed over.
 
 **Note:** This disclaimer was originally written by
 [Adrienne Lowe](https://github.com/adriennefriend) for a
