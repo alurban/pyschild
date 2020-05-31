@@ -40,7 +40,7 @@ CONDA = (find_executable("conda") or
 CONDA_PACKAGE_MAP = {
     "matplotlib": "matplotlib-base"
 }
-TMPFILE = tempfile.mktemp()
+(_, TMPFILE) = tempfile.mkstemp()
 VERSION_OPERATOR = re.compile('[><=!]')
 
 
