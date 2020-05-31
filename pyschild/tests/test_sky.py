@@ -179,6 +179,17 @@ class TestSkyMap(object):
         skymap[indices].write(os.path.join(base, 'partial-skymap.fits'))
         shutil.rmtree(base, ignore_errors=True)
 
+    def test_nonzero(self):
+        """Test `SkyMap.nonzero`
+        """
+        skymap = self.TEST_CLASS(
+            [0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1]
+        )
+        nzmap = skymap.nonzero()
+        assert nzmap.value.min() > 0
+        assert nzmap.size <= nzmap.npix
+        assert_array_equal(nzmap.pindex, skymap.value.nonzero()[0])
+
     def test_saturate(self):
         """Test `SkyMap.saturate`
         """

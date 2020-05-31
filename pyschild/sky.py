@@ -548,6 +548,18 @@ class SkyMap(numpy.ndarray):
 
     # -- analysis and visualization ------------------------
 
+    def nonzero(self):
+        """Query the nonzero pixels in this `SkyMap`
+
+        Returns
+        -------
+        out : `SkyMap`
+            the subset of this instance whose pixel values are nonzero
+        """
+        out = self.copy()
+        (indices, ) = out.value.nonzero()
+        return out[indices]
+
     def saturate(self, limit=1, inplace=True):
         """Saturate pixels in this `SkyMap` that exceed a given limit
 
