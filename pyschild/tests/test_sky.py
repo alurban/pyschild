@@ -201,12 +201,13 @@ class TestSkyMap(object):
         """Test that array subsets are also `SkyMap` instances
         """
         skymap = self.TEST_SKY_MAP
-        indices = numpy.arange(2, 40)
-        subset_map = skymap[indices]
+        slice_ = slice(2, 40, 3)
+        subset_map = skymap[slice_]
         assert isinstance(subset_map, self.TEST_CLASS)
         assert subset_map.partial
-        assert_array_equal(skymap.value[indices], subset_map.value)
-        assert_array_equal(skymap.pindex[indices], subset_map.pindex)
+        assert subset_map.nside == skymap.nside
+        assert_array_equal(subset_map.value, skymap.value[slice_])
+        assert_array_equal(subset_map.pindex, skymap.pindex[slice_])
 
     def test_attributes(self):
         """Test basic, default attributes are set on creation

@@ -31,8 +31,7 @@ __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
 # FIXME: include spherical harmonic tools and rotations, then
 #        write a ray tracer
-# TODO:  there are known issues with slicing (slices aren't iterable) and
-#        with reading/writing partial sky maps
+# TODO:  there are known issues with reading/writing partial sky maps
 class SkyMap(numpy.ndarray):
     """Representation of the sky for a fixed observer in Hierarchical Equal
     Area isoLatitude Pixelization (HEALPix) format
@@ -214,7 +213,7 @@ class SkyMap(numpy.ndarray):
         """Properly re-size indices/values when handling slices
         """
         new = super().__getitem__(key)
-        return type(self)(new, pindex=numpy.array(key), nside=self.nside,
+        return type(self)(new, pindex=self.pindex[key], nside=self.nside,
                           info=self.info, nest=self.nest, dtype=self.dtype)
 
     def __add__(self, value):
