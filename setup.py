@@ -43,6 +43,7 @@ setup_requires = get_setup_requires()
 # runtime dependencies
 install_requires = [
     'astropy >= 3.0.0',
+    'gwpy >= 1.0.0',
     'healpy',
     'matplotlib >= 3.1.0',
     'numpy >= 1.16.0',
