@@ -24,6 +24,8 @@ from scipy.io import wavfile
 
 from gwpy.timeseries import TimeSeries
 
+__author__ = "Alex Urban <alexander.urban@ligo.org>"
+
 
 # -- utilities ----------------------------------------------------------------
 

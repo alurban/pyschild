@@ -26,12 +26,24 @@ graduate students alike, with easy-to-follow tutorials at every step.
 
 from ._version import get_versions
 
+from .signal import (
+    read_stereo,
+    write_stereo,
+    Signal,
+)
 from .sky import SkyMap
 from .star import (Star, StarField)
 
 # set package metadata
 __version__ = get_versions()['version']
 __author__ = "Alex Urban <alexander.urban@ligo.org>"
-__all__ = ['SkyMap', 'Star', 'StarField']
+__all__ = [
+    'read_stereo',
+    'write_stereo',
+    'Signal',
+    'SkyMap',
+    'Star',
+    'StarField',
+]
 
 del get_versions

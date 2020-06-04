@@ -27,7 +27,7 @@ import shutil
 
 from numpy.testing import assert_array_equal
 
-from ..signal import (read_stereo, write_stereo, Signal)
+from .. import (read_stereo, write_stereo, Signal)
 
 __author__ = "Alex Urban <alexander.urban@ligo.org>"
 

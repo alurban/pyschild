@@ -31,7 +31,7 @@ from numpy.testing import (assert_array_equal,
 
 from astropy import units
 
-from ..sky import SkyMap
+from .. import SkyMap
 
 __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
