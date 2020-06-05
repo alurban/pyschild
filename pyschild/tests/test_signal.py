@@ -39,7 +39,7 @@ RIGHT_SIGNAL = Signal(numpy.ones(64), sample_rate=64)
 # -- test I/O utilities -------------------------------------------------------
 
 def test_read_stereo():
-    """Test `pyschild.signal.read_stereo
+    """Test :func:`pyschild.signal.read_stereo
     """
     source = os.path.join(PARENT, 'data/stereo-signal.wav')
     (left, right) = read_stereo(source)
@@ -51,7 +51,7 @@ def test_read_stereo():
 
 
 def test_write_stereo(tmpdir):
-    """Test `pyschild.signal.write_stereo`
+    """Test :func:`pyschild.signal.write_stereo`
     """
     base = str(tmpdir)
     write_stereo(  # test functional output
