@@ -20,6 +20,8 @@
 """
 
 import numpy
+import warnings
+
 from scipy.integrate import solve_ivp
 
 __author__ = "Alex Urban <alexander.urban@ligo.org>"
@@ -245,7 +247,8 @@ def simulate(y0, h, tf=None, verbose=False, **kwargs):
 
     tf : `float`, optional
         unitless termination time of the simulation, defaults to
-        ``2 * numpy.pi * y0[0] ** (3/2)``
+        ``20 * numpy.pi * y0[0] ** (3/2)`` (i.e., 10 cycles according
+        to Kepler's third law)
 
     verbose : `bool`, optional
         if `True`, prints verbose output about the final status of the
@@ -259,11 +262,15 @@ def simulate(y0, h, tf=None, verbose=False, **kwargs):
     soln : `~scipy.integrate.OdeSolution`
        interpolated solutions for ``r``, ``rdot``, and ``phi``,
        represented as a continuous function of proper time that
-       returns an array of shape ``(3, )``
+       returns an array of shape ``(3, n)``
 
-    Raises
-    ------
-    RuntimeError
+    duration : `float`
+        last timestamp of the simulation, either ``tf`` (for non-capture
+        orbits) or the time at which this orbit reaches the singularity
+
+    Warnings
+    --------
+    RuntimeWarning
         if the integration does not converge or fails for any reason
         (will report the reason to `stderr`)
 
@@ -275,9 +282,8 @@ def simulate(y0, h, tf=None, verbose=False, **kwargs):
 
     Because the simulation integrates three dependent variables as a
     function of proper time, ``soln`` returns an array of shape ``(3, )``
-    for every timestamp, and an array of shape ``(3, n)`` for a timestamp
-    array of length ``n``. To unpack variables into separate arrays with
-    length ``n``, use the built-in transpose attribute (`~numpy.ndarray.T`).
+    for every individual timestamp, and an array of shape ``(3, n)`` for
+    a timestamp array of length ``n``.
 
     Examples
     --------
@@ -286,19 +292,19 @@ def simulate(y0, h, tf=None, verbose=False, **kwargs):
 
     >>> from pyschild.orbit import timelike
     >>> initial = timelike.initial_values(0, h=50)
-    >>> soln = timelike.simulate(initial, h=50)
+    >>> (soln, duration) = timelike.simulate(initial, h=50)
 
     Then, create an array of timestamps to sample the interpolated result:
 
     >>> import numpy
-    >>> times = numpy.arange(10 * initial[0])
-    >>> (r, rdot, phi) = soln(times).T
+    >>> times = numpy.arange(duration)
+    >>> (r, rdot, phi) = soln(times)
 
-    Here the ``.T`` attribute specifies the array transpose of ``soln(times)``,
-    so that ``r``, ``rdot``, and ``phi`` are recorded as separate arrays each
-    the same length as ``times``.
+    Since ``soln(times)`` is a 3 x n array, we can directly unpack it to
+    get ``r``, ``rdot``, and ``phi`` as separate 1-D arrays each the same
+    length as ``times``.
 
-    To convert these to physical units, first let ``m`` be a mass in solar
+    To convert these into physical units, first let ``m`` be a mass in solar
     masses, then use base unit objects:
 
     >>> from astropy import units
@@ -331,7 +337,9 @@ def simulate(y0, h, tf=None, verbose=False, **kwargs):
     singularity.terminal = True
     singularity.direction = -1
     # perform numerical integration
-    tf = tf or 2 * numpy.pi * y0[0] ** (3/2)
+    # by default, integrate for 10 circular
+    # orbits according to Kepler's third law
+    tf = tf or 20 * numpy.pi * y0[0] ** (3/2)
     kwargs.setdefault('atol', 1e-6 * tf / 100)
     soln = solve_ivp(rhs, (0, tf), y0, args=(h, ),
                      dense_output=True, events=singularity,
@@ -339,7 +347,7 @@ def simulate(y0, h, tf=None, verbose=False, **kwargs):
     if verbose:  # print verbose output
         print(VERBOSE.format(code=int(not soln.success), nfev=soln.nfev,
                              status=soln.status, message=soln.message))
-    if not soln.success:  # raise error on failure
-        raise RuntimeError(soln.message)
+    if not soln.success:  # warn on failure
+        warnings.warn(soln.message, RuntimeWarning)
     # return interpolated solution
-    return soln.sol
+    return (soln.sol, soln.t[-1])

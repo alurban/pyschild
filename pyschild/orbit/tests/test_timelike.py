@@ -115,28 +115,30 @@ def test_simulate(capsys):
     """
     # test at ISCO
     y0 = timelike.initial_values(0)
-    isco = timelike.simulate(y0, timelike.HISCO, verbose=True)
+    (isco, duration) = timelike.simulate(
+        y0, timelike.HISCO, verbose=True)
     stdout = capsys.readouterr().out
     assert stdout[:-1] == timelike.VERBOSE.format(
         code=0,
-        nfev=26,
+        nfev=32,
         status=0,
         message=("The solver successfully reached the end "
                  "of the integration interval."),
     )
-    times = numpy.arange(60)
+    times = numpy.arange(duration)
     (r, rdot, phi) = isco(times)
     dphi = numpy.diff(phi)
     assert_allclose(r, 6)
-    assert_allclose(rdot, 0, atol=1e-15)
+    assert_allclose(rdot, 0, atol=1e-14)
     assert_allclose(dphi, dphi[0])
+    assert duration == 20 * numpy.pi * y0[0] ** (3/2)
 
     # test a failure mode
-    with pytest.raises(RuntimeError) as exc:
+    with pytest.warns(RuntimeWarning) as record:
         timelike.simulate(
             timelike.initial_values(0.2),
             timelike.HISCO,
             tf=1000,
         )
-    assert str(exc.value) == ("Required step size is less than "
-                              "spacing between numbers.")
+    assert record[0].message.args[0] == ("Required step size is less than "
+                                         "spacing between numbers.")
