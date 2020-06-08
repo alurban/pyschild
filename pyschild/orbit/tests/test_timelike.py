@@ -25,6 +25,7 @@ import pytest
 from numpy.testing import assert_allclose
 from scipy.signal import (argrelmin, argrelmax)
 
+from ... import utils
 from .. import timelike
 
 __author__ = "Alex Urban <alexander.urban@ligo.org>"
@@ -35,21 +36,12 @@ R = numpy.arange(3, 100, 0.1)
 
 # -- test utilities -----------------------------------------------------------
 
-def count_zero_crossing(x):
-    """Convenience function to count zero-crossings in an array
-    """
-    sign = numpy.sign(x)
-    diff = numpy.diff(sign)
-    (cross, ) = numpy.where(diff)
-    return cross.size
-
-
 def test_radial_potential():
     """Test :func:`pyschild.orbit.timelike.radial_potential`
     """
     # test with no angular momentum
     p1 = timelike.radial_potential(R, 0)
-    assert count_zero_crossing(numpy.diff(p1)) == 0
+    assert utils.zero_crossings(numpy.diff(p1)).size == 0
 
     # test with critical angular momentum
     p2 = timelike.radial_potential(R, timelike.HISCO)
@@ -72,7 +64,7 @@ def test_radial_force():
     """
     # test with no angular momentum
     f1 = timelike.radial_force(R, 0)
-    assert count_zero_crossing(f1) == 0
+    assert utils.zero_crossings(f1).size == 0
 
     # test with critical angular momentum
     f2 = timelike.radial_force(R, timelike.HISCO)
@@ -83,7 +75,18 @@ def test_radial_force():
 
     # test with angular momentum that supports stable circular orbits
     f3 = timelike.radial_force(R, ANGMOM)
-    assert count_zero_crossing(f3) == 2
+    assert utils.zero_crossings(f3).size == 2
+
+
+def test_velocity():
+    """Test :func:`pyschild.orbit.timelike.velocity`
+    """
+    r = 6
+    rdot = 0.5
+    beta = timelike.velocity(r, rdot, 0)
+    lhs = rdot**2 / (1 - 2 / r)
+    assert beta == numpy.sqrt(lhs / (1 + lhs))
+    assert (beta > 0) and (beta < 1)
 
 
 def test_initial_values():

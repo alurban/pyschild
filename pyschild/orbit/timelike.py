@@ -127,6 +127,42 @@ def radial_force(r, h):
     return -1 / r**2 + h**2 / r**3 - 3 * h**2 / r**4
 
 
+def velocity(r, rdot, phidot):
+    """Magnitude of the local 3-velocity of a massive particle
+
+    This observable is measured relative to a stationary observer, which can
+    be misleading inside the event horizon, where stationary observers do not
+    exist yet the formula for 3-velocity can be smoothly extended. In this
+    region the 3-velocity appears superluminal only because ``r`` becomes a
+    timelike coordinate.
+
+    Parameters
+    ----------
+    r : `array_like`
+        unitless radial coordinate along a geodesic
+
+    rdot : `array_like`
+        unitless derivative of ``r`` with respect to proper time
+        along a geodesic
+
+    phidot : `array_like`
+        unitless derivative of azimuthal coordinate with respect
+        to proper time along a geodesic
+
+    Returns
+    -------
+    beta : `float` or `~numpy.ndarray`
+        magnitude of the local 3-velocity
+
+    References
+    ----------
+    .. [1] Wikipedia, "Schwarzschild geodesics,"
+           https://en.wikipedia.org/wiki/Schwarzschild_geodesics
+    """
+    lhs = rdot**2 / (1 - 2 / r) + r**2 * phidot**2
+    return numpy.sqrt(lhs / (1 + lhs))
+
+
 def initial_values(ecc, h=HISCO, phi0=numpy.pi/2):
     """Determine initial conditions for timelike orbits
 
