@@ -56,7 +56,7 @@ def radial_potential(r, h):
         unitless radial coordinate
 
     h : `float`
-        unitless orbital angular momentum
+        unitless specific orbital angular momentum
 
     Returns
     -------
@@ -81,6 +81,8 @@ def radial_potential(r, h):
     --------
     radial_force
         a utility to compute the effective radial force for timelike geodesics
+    pyschild.orbit.null.radial_potential
+        effective radial potential for null geodesics
     """
     return -1 / r + (h/r)**2 * (1 - 2 / r) / 2
 
@@ -97,7 +99,7 @@ def radial_force(r, h):
         unitless radial coordinate
 
     h : `float`
-        unitless orbital angular momentum
+        unitless specific orbital angular momentum
 
     Returns
     -------
@@ -179,8 +181,8 @@ def initial_values(ecc, h=HISCO, phi0=numpy.pi/2):
         are unbound
 
     h : `float`, optional
-        unitless orbital angular momentum, must be no smaller than
-        `numpy.sqrt(12)` so the potential can support a circular orbit
+        unitless specific orbital angular momentum, must be no smaller than
+        `~numpy.sqrt(12)` so the potential can support a circular orbit
 
     phi0 : `float`, optional
         orbital phase offset, defaults to `~numpy.pi/2`
@@ -238,7 +240,7 @@ def rhs(_t, y, h):
         ``r``, ``v_r``, and ``phi``
 
     h : `float`
-        angular momentum per unit mass (unitless)
+        unitless specific orbital angular momentum
 
     Returns
     -------
@@ -279,7 +281,7 @@ def simulate(y0, h, tf=None, verbose=False, **kwargs):
         array of initial values for ``r``, ``rdot``, and ``phi``
 
     h : `float`
-        unitless orbital angular momentum parameter
+        unitless specific orbital angular momentum
 
     tf : `float`, optional
         unitless termination time of the simulation, defaults to
@@ -320,6 +322,10 @@ def simulate(y0, h, tf=None, verbose=False, **kwargs):
     function of proper time, ``soln`` returns an array of shape ``(3, )``
     for every individual timestamp, and an array of shape ``(3, n)`` for
     a timestamp array of length ``n``.
+
+    Users may still pass events using the ``events`` keyword argument, which
+    should be a list of functions that each accept all and only ``(t, r, h)``
+    as arguments (in that order).
 
     Examples
     --------
@@ -372,13 +378,16 @@ def simulate(y0, h, tf=None, verbose=False, **kwargs):
         return y[0]
     singularity.terminal = True
     singularity.direction = -1
+    # append singularity to the list of events
+    events = kwargs.pop('events', [])
+    events.append(singularity)
     # perform numerical integration
     # by default, integrate for 10 circular
     # orbits according to Kepler's third law
     tf = tf or 20 * numpy.pi * y0[0] ** (3/2)
     kwargs.setdefault('atol', 1e-6 * tf / 100)
     soln = solve_ivp(rhs, (0, tf), y0, args=(h, ),
-                     dense_output=True, events=singularity,
+                     dense_output=True, events=events,
                      **kwargs)
     if verbose:  # print verbose output
         print(VERBOSE.format(code=int(not soln.success), nfev=soln.nfev,
