@@ -20,8 +20,10 @@
 """
 
 import numpy
+import pytest
 
 from numpy.testing import assert_allclose
+from scipy.interpolate import InterpolatedUnivariateSpline
 from scipy.signal import (argrelmin, argrelmax)
 
 from ... import utils
@@ -29,48 +31,78 @@ from .. import null
 
 __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
-ANGMOM = 4
-R = numpy.arange(1, 100, 0.1)
-
 
 # -- test utilities -----------------------------------------------------------
 
 def test_radial_potential():
     """Test :func:`pyschild.orbit.null.radial_potential`
     """
+    r = numpy.arange(1, 100, 0.1)
+
     # test with no angular momentum
-    p1 = null.radial_potential(R, 0)
+    p1 = null.radial_potential(r, 0)
     assert utils.zero_crossings(numpy.diff(p1)).size == 0
 
     # test with angular momentum that supports stable circular orbits
-    p2 = null.radial_potential(R, ANGMOM)
+    p2 = null.radial_potential(r, 4)
     (pmin, ) = argrelmin(p2)
     (pmax, ) = argrelmax(p2)
     assert pmin.size == 0
     assert pmax.size == 1
-    assert_allclose(R[pmax], 3)  # photon sphere
+    assert_allclose(r[pmax], 3)  # photon sphere
 
 
-def test_rhs():
-    """Test :func:`pyschild.orbit.null.rhs`
+def test_impact_parameter():
+    """Test :func:`pyschild.orbit.null.impact_parameter`
     """
-    # radial infall on the photon sphere
-    y0 = numpy.array([0, 0, 3, 0, 0, 1])
-    rhs = null.rhs(0, y0)
-    assert_allclose(rhs, [0, 0, 1, 0, 0, 0])
+    r = 30
+    psi = numpy.arcsin(numpy.sqrt(27) / r)
+    b = null.impact_parameter(r, psi)
+    assert_allclose(b, numpy.sqrt(27), rtol=1.5e-3)
 
 
-def test_simulate():
-    """Test :func:`pyschild.orbit.null.simulate`
+def test_closest_approach():
+    """Test :func:`pyschild.orbit.null.closest_approach`
     """
-    # test from photon sphere
-    y0 = numpy.array([0, 0, 3, 0, 1, 0])
-    (psph, duration) = null.simulate(y0)
-    times = numpy.arange(duration)
-    (x, y, z, xdot, ydot, zdot) = psph(times)
-    r = numpy.sqrt(x**2 + y**2 + z**2)
-    v = numpy.sqrt(xdot**2 + ydot**2 + zdot**2)
-    assert (r >= 3).all()
-    assert numpy.diff(r).all()
-    assert_allclose(v, 1, rtol=0.05)
-    assert duration < 1000
+    # test with small impact parameter
+    assert null.closest_approach(0) == 0
+
+    # test with marginal impact parameter
+    assert_allclose(null.closest_approach(3 * numpy.sqrt(3)), 3)
+
+
+def test_integrand():
+    """Test :func:`pyschild.orbit.null.integrand`
+    """
+    b = 4
+    r = numpy.linspace(1, 50, 101)
+    denom = r * numpy.sqrt((r/b)**2 - (1 - 2/r))
+    assert_allclose(
+        null.integrand(r, b),
+        -1 / denom,
+    )
+
+
+def test_phi_inf():
+    """Test :func:`pyschild.orbit.null.phi_inf`
+    """
+    # test an escaped photon
+    escaped = null.phi_inf(6, numpy.pi)
+    assert_allclose(escaped, 0, atol=1.5e-16)
+
+    # test an absorbed photon
+    with pytest.warns(RuntimeWarning) as record:
+        absorbed = null.phi_inf(6, 0)
+    assert record[0].message.args[0] == (
+        "Orbit along delta = 0.0 is absorbed")
+    assert numpy.isnan(absorbed)
+
+
+def test_source_angle():
+    """Test :func:`pyschild.orbit.null.source_angle`
+    """
+    angle = null.source_angle(20)
+    assert isinstance(angle, InterpolatedUnivariateSpline)
+    assert_allclose(angle(numpy.pi), 0, atol=1.5e-16)
+    with pytest.raises(ValueError):
+        angle(0)

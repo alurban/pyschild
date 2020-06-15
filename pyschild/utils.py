@@ -26,6 +26,37 @@ __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
 # -- utilities ----------------------------------------------------------------
 
+def angular_separation(vec1, vec2):
+    """Compute the counter-clockwise angular separation between two vectors
+
+    Parameters
+    ----------
+    vec1, vec2: `~numpy.ndarray`
+        vectors (or arrays of vectors) between which to compute the angular
+        separation in 3-dimensional Euclidean space
+
+    Returns
+    -------
+    delta : `float` or `~numpy.ndarray`
+        angular separation between `vec1` and `vec2`, by convention in the
+        semi-open interval ``[0, 2*pi)``
+    """
+    # take vector components
+    (x1, y1, z1) = numpy.asarray(vec1).T
+    (x2, y2, z2) = numpy.asarray(vec2).T
+    # work out geometric quantities
+    norm1 = numpy.sqrt(x1**2 + y1**2 + z1**2)
+    norm2 = numpy.sqrt(x2**2 + y2**2 + z2**2)
+    cross = numpy.sqrt((y1*z2 - y2*z1)**2 +
+                       (z1*x2 - z2*x1)**2 +
+                       (x1*y2 - x2*y1)**2)
+    dot = x1 * x2 + y1 * y2 + z1 * z2
+    cosd = dot / (norm1 * norm2)
+    sind = cross / (norm1 * norm2)
+    # return angular separation
+    return numpy.arctan2(sind, cosd) % (2 * numpy.pi)
+
+
 def power_sample(start, stop, num=50, base=2, **kwargs):
     """Convenience function to sample values clustered by a power law
 

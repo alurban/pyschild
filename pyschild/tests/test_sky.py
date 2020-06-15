@@ -232,6 +232,8 @@ class TestSkyMap(object):
         assert skymap.pixarea.unit == units.deg ** 2
         assert skymap.area.value == skymap.size * skymap.pixarea.value
         assert skymap.area.unit == units.deg ** 2
+        assert isinstance(skymap.directions, numpy.ndarray)
+        assert_array_equal(skymap.directions.shape, (skymap.npix, 3))
 
     # -- test methods ---------------------------
 
@@ -289,3 +291,21 @@ class TestSkyMap(object):
                 1,
             ),
         )
+
+    def test_lens(self):
+        """Test `SkyMap.lens`
+        """
+        r = 69
+        skymap = self.TEST_SKY_MAP
+        lensed = skymap.lens(r)
+        assert lensed.nest == skymap.nest
+        assert lensed.npix == skymap.npix
+        assert lensed.nside == skymap.nside
+        assert lensed.value.max() == skymap.value.max()
+        assert_array_equal(lensed.pindex, skymap.pindex)
+        assert not numpy.array_equal(lensed.value, skymap.value)
+
+        # test the BH region is dark
+        psi = numpy.arcsin(numpy.sqrt(27) / r)
+        bh = lensed.pencil(numpy.pi / 2, 0, psi)
+        assert_array_equal(bh.value, 0)

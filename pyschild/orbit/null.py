@@ -20,12 +20,12 @@
 """
 
 import numpy
+import warnings
 
-from scipy.integrate import solve_ivp
-from scipy.linalg import norm
+from scipy.integrate import quad
+from scipy.interpolate import InterpolatedUnivariateSpline
 
 __author__ = "Alex Urban <alexander.urban@ligo.org>"
-__credit__ = "Riccardo Antonelli <http://rantonels.github.io>"
 
 
 # -- utilities ----------------------------------------------------------------
@@ -71,160 +71,207 @@ def radial_potential(r, h):
     return (h/r)**2 * (1 - 2 / r) / 2
 
 
-def rhs(_t, y):
-    """Right-hand side of the parameterized Binet equation for null geodesics
+def impact_parameter(r, delta):
+    """Compute the impact parameter of a photon orbit
+
+    Parameters
+    ----------
+    r : `float`
+        unitless radial coordinate
+
+    delta : `float` or `array_like`
+        angle (radians) between the radial direction and the
+        instantaneous 3-velocity of a photon
+
+    Returns
+    -------
+    b : `float` or `array_like`
+        impact parameter correspending to these initial conditions,
+        scalar if ``delta`` is scalar else an array the same length
+        as ``delta``
+    """
+    rdot = numpy.cos(delta)
+    h = r * numpy.sin(delta)
+    gamma = numpy.sqrt(
+        (rdot**2 +
+         2 * radial_potential(r, h))
+    )
+    return numpy.abs(h / gamma)
+
+
+def closest_approach(b):
+    """Radial coordinate of closest approach for a photon orbit
+
+    Parameters
+    ----------
+    b : `float`
+        impact parameter of the photon orbit
+
+    Returns
+    -------
+    r0 : `float`
+        radial coordinate of closest approach, will be zero if
+        ``b < 3 * 3**(1/2)``
+    """
+    if b < 3 * numpy.sqrt(3):
+        return 0
+    # find the appropriate polynomial root
+    roots = numpy.roots([1, 0, -b**2, 2*b**2])
+    return roots[1]
+
+
+def integrand(r, b):
+    """Integrand to find angular deflection along null geodesics
 
     This is a convenience function to enable numerical solutions of
-    Schwarzschild orbits given a value for ``r`` and ``rdot`` at the
-    same point(s). It uses geometrized units (``G = c = 1``) and is
-    written in terms of ``r / M``, so all physical quantities are unitless.
+    Schwarzschild orbits given a value for ``r`` and ``b`` at the same
+    point(s). It uses geometrized units (``G = c = 1``) and is written
+    in terms of ``r / M``, so all physical quantities are unitless.
 
     Parameters
     ----------
-    _t : `float`
-        timestamp of the solution point (not used in practice, but needed
-        in the function signature by `~scipy.integrate.solve_ivp`)
+    r : `float`
+        unitless radial coordinate
 
-    y : `array-like`
-        collection of (unitless) solution values for
-        ``[x, y, z, xdot, ydot, zdot]``
+    b : `float`
+        impact parameter along a fixed null geodesic
 
     Returns
     -------
-    dydt : `~numpy.ndarray`
-        an array of derivatives for ``[x, y, z, xdot, ydot, zdot]``
-        evaluated at the given point
+    dphi_dr : `float`
+        integrand evaluated at the given point with given parameter
 
     Notes
     -----
     This uses geometrized units (``G = c = 1``) and is written in terms
-    of ``r / M``, so ``h`` and all terms of the potential are unitless.
+    of ``r / M``, so ``b`` and all terms of the potential are unitless.
+
+    The integrand here accumulates a minus sign because it is used below
+    to trace photon trajectories from a given spacetime event back to past
+    null infinity.
 
     See also
     --------
-    scipy.integrate.solve_ivp
-        the utility which calls this function to numerically solve
-        null geodesic equations of motion
+    scipy.integrate.quad
+        utility which numerically integrates this function at fixed
+        ``delta``
     """
-    (x, xdot) = numpy.split(y, 2)
-    h = norm(numpy.cross(x, xdot))
-    r = norm(x)
-    # accelerations
-    xddot = numpy.array([
-        # we are integrating *backwards*, so this is off
-        # by a minus sign from the Binet equation
-        3 * h**2 * elem / (2 * r**5) for elem in (x / r)
-    ])
-    return numpy.concatenate((xdot, xddot))
+    denom = r * numpy.sqrt((r/b)**2 - (1 - 2/r))
+    return (-1 / denom)
 
 
-def simulate(y0, tf=1000, **kwargs):
-    """Numerically integrate parameterized Binet equations for null geodesics
+def phi_inf(r, delta, **kwargs):
+    """Azimuthal coordinate of an inbound photon at past null infinity
 
-    This utility is a wrapper around `~scipy.integrate.solve_ivp` that
-    integrates backward with a custom termination event for photons that
-    reach the far-field region. It uses geometrized units (``G = c = 1``)
-    and is written in terms of ``r / M``, so all physical quantities are
-    unitless.
+    This utility is a wrapper around `~scipy.integrate.quad` that integrates
+    photon trajectories backward, tracing them to the far-field region. It
+    uses geometrized units (``G = c = 1``) and is written in terms of
+    ``r / M``, so all physical quantities are unitless.
 
     Parameters
     ----------
-    y0 : `array-like`
-        array of initial values in the form ``[x, y, z, xdot, ydot, zdot]``
+    r : `float`
+        unitless radial coordinate
 
-    tf : `float`, optional
-        unitless termination time of the simulation, default: 1000
+    delta : `float`
+        angle (radians) between the radial direction and the
+        instantaneous 3-velocity of a photon
 
     **kwargs : `dict`, optional
-        additional keyword arguments to `~scipy.integrate.solve_ivp`
+        additional keyword arguments to `~scipy.integrate.quad`
 
     Returns
     -------
-    soln : `~scipy.integrate.OdeSolution`
-       interpolated solutions for ``x``, ``y``, ``z``, ``xdot``, ``ydot``,
-       and ``zdot``, represented as a continuous function of proper time that
-       returns an array of shape ``(6, n)``
-
-    duration : `float`
-        last timestamp of the null ray, either ``tf`` (for rays that do not
-        escape in time) or the approximate time at which the ray "reaches"
-        the far-field region (measured by the Binet force shrinking to
-        ``1e-10``)
-
-        ..note: Because there is no well-defined notion of proper time for
-                null geodesics, the curve parameter ``t`` **does not**
-                measure time in any meaningful sense.
-
-    Notes
-    -----
-    This uses geometrized units (``G = c = 1``) and is written in terms
-    of ``r / M``, so all physical quantities are unitless. However, any
-    solution can easily be re-scaled to physical units, see below.
-
-    Because the simulation integrates six dependent variables as a
-    function of proper time, ``soln`` returns an array of shape ``(6, )``
-    for every individual timestamp, and an array of shape ``(6, n)`` for
-    a timestamp array of length ``n``.
-
-    Users may still pass events using the ``events`` keyword argument, which
-    should be a list of functions that each accept both and only ``(t, r)``
-    as arguments (in that order).
-
-    Examples
-    --------
-    We can trace a photon trajectory backwards from the instant it crosses
-    the photon sphere:
-
-    >>> import numpy
-    >>> from pyschild.orbit import null
-    >>> initial = numpy.array([3, 0, 0, 1, 0, 0])
-    >>> (soln, duration) = null.simulate(initial)
-
-    Then, create an array of curve parameters to sample the interpolated
-    result:
-
-    >>> param = numpy.arange(duration)
-    >>> (x, y, z, xdot, ydot, zdot) = soln(param)
-
-    Since ``soln(param)`` is a 6 x n array, we can directly unpack it to
-    get ``x``, ``y``, ``z``, and their derivatives as separate 1-D arrays
-    each the same length as ``param``.
-
-    To convert these into physical units, first let ``m`` be a mass in solar
-    masses, then use base unit objects, e.g.:
-
-    >>> from astropy import units
-    >>> from pyschild.orbit import (RSOL, TSOL)
-    >>> m = 1.4  # typical mass of a neutron star
-    >>> x *= m * RSOL
-    >>> xdot *= (RSOL / TSOL)
+    final : `float`
+        azimuthal coordinate of the inbound photon, traced back to
+        past null infinity
 
     See also
     --------
-    scipy.integrate.solve_ivp
-        utility which numerically integrates to solve an initial value
-        problem
-    rhs
-        right-hand side of the parameterized Binet equation
+    scipy.integrate.quad
+        the utility which numerically integrates at fixed ``delta``
+    integrand
+        integrand to find angular deflection along null geodesics
     """
-    def far_field(_t, y):
-        """Terminal event for a photon reaching the far-field
+    # unwrap delta between [-pi, pi)
+    (delta, ) = numpy.unwrap([delta])
+    # orbital properties
+    ingoing = (abs(delta) < numpy.pi / 2)
+    b = impact_parameter(r, delta)
+    r0 = closest_approach(b)
+    # integrate ingoing orbits
+    if ingoing and r0 == 0:
+        warnings.warn(
+            "Orbit along delta = {} is absorbed".format(delta),
+            RuntimeWarning,
+        )
+        return numpy.nan
+    elif ingoing:
+        (final1, _) = quad(integrand, r0, r,
+                           args=(b, ), **kwargs)
+        (final2, _) = quad(integrand, r0, numpy.inf,
+                           args=(b, ), **kwargs)
+        return final1 + final2
+    # integrate outgoing orbits
+    (final, _) = quad(integrand, r, numpy.inf,
+                      args=(b, ), **kwargs)
+    return final
 
-        The ``_t`` positional argument is a dummy variable required by the
-        numerical integrator. For details see `~scipy.integrate.solve_ivp`
-        """
-        (x, xdot) = numpy.split(y, 2)
-        h = norm(numpy.cross(x, xdot))
-        r = norm(x)
-        return (3 * h**2 / (2 * r**5) - 1e-10)
-    far_field.terminal = True
-    far_field.direction = -1
-    # append far_field to the list of events
-    events = kwargs.pop('events', [])
-    events.append(far_field)
-    # perform numerical integration
-    kwargs.setdefault('atol', 1e-6 * tf / 100)
-    soln = solve_ivp(rhs, (0, tf), y0, dense_output=True,
-                     events=events, **kwargs)
-    # return interpolated solution
-    return (soln.sol, soln.t[-1])
+
+def source_angle(r, ninterp=101, **kwargs):
+    """Determine the source angle as a function of viewing angle
+
+    This utility is a wrapper around :func:`pyschild.orbit.null.phi_inf`
+    that returns a callable function. At fixed ``r``, this function is
+    the interpolated source angle as a function of viewing angle away
+    from the ingoing radial direction.
+
+    Parameters
+    ----------
+    r : `float`
+        unitless radial coordinate
+
+    ninterp : `int`, optional
+        number of points to sample (logarithmically) for interpolation
+
+    **kwargs : `dict`, optional
+        additional keyword arguments to `~scipy.integrate.quad`
+
+    Returns
+    -------
+    angle : `callable`
+        a continuous function of viewing angle returning the source angle
+        from this fixed radial coordinate
+
+    Notes
+    -----
+    The output callable function ``angle`` will raise a `ValueError` for
+    photons that fall past the event horizon, i.e. for viewing angles
+    with impact parameter ``b <= 3 * sqrt(3)``.
+
+    See also
+    --------
+    phi_inf
+        the utility which numerically integrates along null geodesics
+    scipy.interpolate.InterpolatedBivariateSpline
+        interpolates between viewing angles to return a continuous function
+    """
+    psi = numpy.arcsin(numpy.sqrt(27) / r)
+    delta = numpy.geomspace(psi, numpy.pi, num=ninterp)
+    final = numpy.array([phi_inf(r, d, **kwargs) for d in delta])
+    # reject non-finite values and extend to 2*pi
+    finite = (numpy.isfinite(final)).nonzero()
+    domain = numpy.concatenate((
+        delta[finite],
+        (2 * numpy.pi - delta[finite][:-1])[::-1],
+    ))
+    range_ = numpy.concatenate((
+        final[finite],
+        (-final[finite][:-1])[::-1],
+    ))
+    # return interpolated function
+    return InterpolatedUnivariateSpline(
+        domain,
+        range_,
+        ext=2,
+    )

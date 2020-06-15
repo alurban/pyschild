@@ -19,18 +19,20 @@
 """Core utilities for HEALPix sky map representation
 """
 
+import healpy
 import numpy
 
-import healpy
 from astropy import units
+
+from .orbit import null
+from .utils import angular_separation
 
 __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
 
 # -- classes ------------------------------------------------------------------
 
-# FIXME: include spherical harmonic tools and rotations, then
-#        write a ray tracer
+# FIXME: include spherical harmonic tools and rotations
 # TODO:  there are known issues with reading/writing partial sky maps
 class SkyMap(numpy.ndarray):
     """Representation of the sky for a fixed observer in Hierarchical Equal
@@ -471,17 +473,21 @@ class SkyMap(numpy.ndarray):
     def directions(self):
         """Directions corresponding to pixels of this `SkyMap`
 
-        Returns a tuple of Cartesian vector components for each pixel
-        indicating direction from the origin to a point on the unit
-        sphere, e.g.
+        Returns an array of Cartesian 3-vectors corresponding to the
+        direction from the origin to a point on the unit sphere for
+        each pixel, e.g.
 
-        >>> (x, y, z) = skymap.directions
+        >>> directions = skymap.directions
 
-        Because these are unit vectors, an element-wise quadrature sum will
-        give unity, i.e. ``x**2 + y**2 + z**2`` is functionally equivalent to
-        `~numpy.ones(self.size)`.
+        Because these are unit vectors, an element-wise quadrature sum
+        will give unity, i.e. ``array([norm(x) for x in directions])``
+        is functionally equivalent to `~numpy.ones(self.size)`.
         """
-        return healpy.pix2vec(self.nside, self.pindex, nest=self.nest)
+        return numpy.array(
+            healpy.pix2vec(self.nside,
+                           self.pindex,
+                           nest=self.nest),
+        ).T
 
     # -- data I/O ------------------------------------------
 
@@ -656,3 +662,66 @@ class SkyMap(numpy.ndarray):
         indices = healpy.query_disc(self.nside, direction, angrad,
                                     nest=self.nest, **kwargs)
         return self[indices]
+
+    def lens(self, r, **kwargs):
+        """Apply a Schwarzschild gravitational lens to this `SkyMap`
+
+        Parameters
+        ----------
+        r : `float`
+            unitless radial coordinate
+
+        **kwargs : `dict`, optional
+            additional keyword arguments to `pyschild.orbit.null.source_angle`
+
+        Returns
+        -------
+        lensed : `SkyMap`
+            copy of this `SkyMap` with a non-spinning black hole in the
+            ``(1, 0, 0)`` direction and consequent gravitational lensing
+
+        Example
+        -------
+        To draw a field of distant stars, then lens them in the presence
+        of a black hole from radial coordinate ``r = 50``:
+
+        >>> from pyschild.star import StarField
+        >>> field = StarField()
+        >>> sky = field.sky()
+        >>> lensed = sky.lens(50)
+
+        See also
+        --------
+        pyschild.orbit.null.source_angle
+            the utility which traces photon trajectories back
+            to past null infinity
+        """
+        out = numpy.zeros_like(self)
+        radial = (1, 0, 0)
+        # exclude BH apparent size
+        psi = numpy.arcsin(
+            numpy.sqrt(27) / r)
+        images = numpy.setdiff1d(
+            self.pindex,
+            healpy.query_disc(
+                self.nside,
+                radial,
+                psi,
+                nest=self.nest,
+            ),
+        )
+        # work out geometric quantities
+        directions = out[images].directions
+        thetax = numpy.arctan2(directions.T[2], directions.T[1])
+        delta = angular_separation(directions, radial)
+        pinf = null.source_angle(r, **kwargs)(delta)
+        # trace photon trajectories
+        sources = healpy.vec2pix(
+            self.nside,
+            numpy.cos(pinf),
+            numpy.sin(pinf) * numpy.cos(thetax),
+            numpy.sin(pinf) * numpy.sin(thetax),
+            nest=self.nest,
+        )
+        out[images] += self[sources]
+        return out

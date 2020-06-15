@@ -20,6 +20,7 @@
 """
 
 import numpy
+import pytest
 
 from numpy.testing import assert_array_equal
 
@@ -29,6 +30,56 @@ __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
 
 # -- test utilities -----------------------------------------------------------
+
+def test_angular_separation():
+    """Test :func:`pyschild.utils.angular_separation`
+    """
+    # test one-on-one vectors
+    vec1 = numpy.random.rand(3)
+    vec2 = numpy.random.rand(3)
+    delta = utils.angular_separation(vec1, vec2)
+    assert isinstance(delta, float)
+    assert 0 <= delta < 2 * numpy.pi
+
+    # test many-on-one vectors
+    vec1 = numpy.random.rand(10, 3)
+    vec2 = numpy.random.rand(3)
+    delta = utils.angular_separation(vec1, vec2)
+    assert isinstance(delta, numpy.ndarray)
+    assert_array_equal(delta.shape, (10, ))
+    assert (numpy.logical_and(
+        delta >= 0,
+        delta < 2 * numpy.pi,
+    )).all()
+
+    # test many-on-many vectors
+    vec1 = numpy.random.rand(27, 3)
+    vec2 = numpy.random.rand(27, 3)
+    delta = utils.angular_separation(vec1, vec2)
+    assert isinstance(delta, numpy.ndarray)
+    assert_array_equal(delta.shape, (27, ))
+    assert (numpy.logical_and(
+        delta >= 0,
+        delta < 2 * numpy.pi,
+    )).all()
+
+    # incorrect vector dimension
+    with pytest.raises(ValueError) as exc:
+        utils.angular_separation(
+            numpy.random.rand(2),
+            numpy.random.rand(3),
+        )
+    assert "not enough values to unpack" in str(exc.value)
+
+    # incompatible array sizes
+    with pytest.raises(ValueError) as exc:
+        utils.angular_separation(
+            numpy.random.rand(2, 3),
+            numpy.random.rand(8, 3),
+        )
+    assert ("operands could not be broadcast "
+            "together with shapes") in str(exc.value)
+
 
 def test_power_sample():
     """Test :func:`pyschild.utils.power_sample`
