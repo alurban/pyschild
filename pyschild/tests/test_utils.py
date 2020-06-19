@@ -20,9 +20,11 @@
 """
 
 import numpy
-import pytest
 
-from numpy.testing import assert_array_equal
+from numpy.testing import (
+    assert_allclose,
+    assert_array_equal,
+)
 
 from .. import utils
 
@@ -31,54 +33,39 @@ __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
 # -- test utilities -----------------------------------------------------------
 
-def test_angular_separation():
-    """Test :func:`pyschild.utils.angular_separation`
+def test_get_rotation_axis():
+    """Test :func:`pyschild.utils.get_rotation_axis`
     """
-    # test one-on-one vectors
-    vec1 = numpy.random.rand(3)
-    vec2 = numpy.random.rand(3)
-    delta = utils.angular_separation(vec1, vec2)
-    assert isinstance(delta, float)
-    assert 0 <= delta < 2 * numpy.pi
+    # non-rotation
+    (axis1, angle1) = utils.get_rotation_axis((1, 0, 0))
+    assert angle1 == 0
+    assert_array_equal(axis1, (1, 0, 0))
 
-    # test many-on-one vectors
-    vec1 = numpy.random.rand(10, 3)
-    vec2 = numpy.random.rand(3)
-    delta = utils.angular_separation(vec1, vec2)
-    assert isinstance(delta, numpy.ndarray)
-    assert_array_equal(delta.shape, (10, ))
-    assert (numpy.logical_and(
-        delta >= 0,
-        delta < 2 * numpy.pi,
-    )).all()
+    # under-determined rotation
+    (axis2, angle2) = utils.get_rotation_axis((-1, 0, 0))
+    assert angle2 == numpy.pi
+    assert_array_equal(axis2, (0, 0, 1))
 
-    # test many-on-many vectors
-    vec1 = numpy.random.rand(27, 3)
-    vec2 = numpy.random.rand(27, 3)
-    delta = utils.angular_separation(vec1, vec2)
-    assert isinstance(delta, numpy.ndarray)
-    assert_array_equal(delta.shape, (27, ))
-    assert (numpy.logical_and(
-        delta >= 0,
-        delta < 2 * numpy.pi,
-    )).all()
+    # more general rotation
+    (axis3, angle3) = utils.get_rotation_axis((0, 1, 0))
+    assert_allclose(angle3, numpy.pi / 2)
+    assert_allclose(axis3, (0, 0, 1))
 
-    # incorrect vector dimension
-    with pytest.raises(ValueError) as exc:
-        utils.angular_separation(
-            numpy.random.rand(2),
-            numpy.random.rand(3),
-        )
-    assert "not enough values to unpack" in str(exc.value)
 
-    # incompatible array sizes
-    with pytest.raises(ValueError) as exc:
-        utils.angular_separation(
-            numpy.random.rand(2, 3),
-            numpy.random.rand(8, 3),
-        )
-    assert ("operands could not be broadcast "
-            "together with shapes") in str(exc.value)
+def test_rotate():
+    """Test :func:`pyschild.utils.rotate`
+    """
+    # single vector
+    vec = (1, 0, 0)
+    angle = numpy.pi / 2
+    axis = (0, 0, 1)
+    rotated = utils.rotate(vec, angle, axis)
+    assert_allclose(rotated, (0, 1, 0), atol=1e-16)
+
+    # array of vectors
+    vec = ((0, -1, 0), (1, 0, 0))
+    rotated = utils.rotate(vec, angle, axis)
+    assert_allclose(rotated, ((1, 0, 0), (0, 1, 0)), atol=1e-16)
 
 
 def test_power_sample():

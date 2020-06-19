@@ -246,7 +246,7 @@ def source_angle(r, ninterp=101, **kwargs):
     Notes
     -----
     The output callable function ``angle`` will raise a `ValueError` for
-    photons that fall past the event horizon, i.e. for viewing angles
+    photons that fall past the event horizon, i.e. for inward viewing angles
     with impact parameter ``b <= 3 * sqrt(3)``.
 
     See also

@@ -24,16 +24,14 @@ import numpy
 
 from astropy import units
 
+from . import utils
 from .orbit import null
-from .utils import angular_separation
 
 __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
 
 # -- classes ------------------------------------------------------------------
 
-# FIXME: include spherical harmonic tools and rotations
-# TODO:  there are known issues with reading/writing partial sky maps
 class SkyMap(numpy.ndarray):
     """Representation of the sky for a fixed observer in Hierarchical Equal
     Area isoLatitude Pixelization (HEALPix) format
@@ -610,7 +608,7 @@ class SkyMap(numpy.ndarray):
         (indices, ) = out.value.nonzero()
         return out[indices]
 
-    def saturate(self, limit=1, inplace=True):
+    def saturate(self, limit=1):
         """Saturate pixels in this `SkyMap` that exceed a given limit
 
         Parameters
@@ -618,16 +616,12 @@ class SkyMap(numpy.ndarray):
         limit : `float`, optional
             limiting value to saturate, default: 1
 
-        inplace : `bool`, optional
-            if `True`, perform operation in-place (modifying this `SkyMap`
-            instance in memory), else return a copy, default: `True`
-
         Returns
         -------
         out : `SkyMap`
             a version of this instance whose peak value saturates at ``limit``
         """
-        out = self if inplace else self.copy()
+        out = self.copy()
         out[self.value > limit] = limit
         return out
 
@@ -663,7 +657,33 @@ class SkyMap(numpy.ndarray):
                                     nest=self.nest, **kwargs)
         return self[indices]
 
-    def lens(self, r, **kwargs):
+    def rotate(self, direction):
+        """Re-orient the x-axis of this `SkyMap` via rotation
+
+        Parameters
+        ----------
+        direction : `array_like`
+            Cartesian vector along which the x-axis will be re-oriented
+
+        Returns
+        -------
+        out : `SkyMap`
+            the rotated sky map
+        """
+        out = self.copy()
+        # get rotation axis and angle
+        (axis, angle) = utils.get_rotation_axis(direction)
+        # rotate individual pixels
+        rotated = healpy.vec2pix(
+            self.nside,
+            *utils.rotate(self.directions,
+                          angle,
+                          axis).T,
+            nest=self.nest)
+        out = self[rotated]
+        return out
+
+    def lens(self, r, location=(1, 0, 0), **kwargs):
         """Apply a Schwarzschild gravitational lens to this `SkyMap`
 
         Parameters
@@ -671,8 +691,13 @@ class SkyMap(numpy.ndarray):
         r : `float`
             unitless radial coordinate
 
+        location : `array_like`, optional
+            unit vector defining the direction to BH center
+            on the observer's sky
+
         **kwargs : `dict`, optional
-            additional keyword arguments to `pyschild.orbit.null.source_angle`
+            additional keyword arguments to
+            `pyschild.orbit.null.source_angle`
 
         Returns
         -------
@@ -696,32 +721,37 @@ class SkyMap(numpy.ndarray):
             the utility which traces photon trajectories back
             to past null infinity
         """
-        out = numpy.zeros_like(self)
         radial = (1, 0, 0)
+        rotated = self.rotate(location)
+        (axis, angle) = utils.get_rotation_axis(location)
+        oldx = utils.rotate(radial, -angle, axis)
+        out = numpy.zeros_like(self)
         # exclude BH apparent size
         psi = numpy.arcsin(
             numpy.sqrt(27) / r)
         images = numpy.setdiff1d(
-            self.pindex,
+            out.pindex,
             healpy.query_disc(
-                self.nside,
+                out.nside,
                 radial,
                 psi,
-                nest=self.nest,
+                nest=out.nest,
             ),
         )
         # work out geometric quantities
         directions = out[images].directions
         thetax = numpy.arctan2(directions.T[2], directions.T[1])
-        delta = angular_separation(directions, radial)
+        delta = numpy.arccos(directions @ radial)
         pinf = null.source_angle(r, **kwargs)(delta)
         # trace photon trajectories
         sources = healpy.vec2pix(
-            self.nside,
+            rotated.nside,
             numpy.cos(pinf),
             numpy.sin(pinf) * numpy.cos(thetax),
             numpy.sin(pinf) * numpy.sin(thetax),
-            nest=self.nest,
+            nest=rotated.nest,
         )
-        out[images] += self[sources]
+        out[images] += rotated[sources]
+        # return to original orientation
+        out = out.rotate(oldx)
         return out

@@ -21,40 +21,99 @@
 
 import numpy
 
+from numpy.linalg import norm
+
 __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
 
 # -- utilities ----------------------------------------------------------------
 
-def angular_separation(vec1, vec2):
-    """Compute the counter-clockwise angular separation between two vectors
+def get_rotation_axis(direction):
+    """Convenience function to get the angle and axis of a rotation
 
     Parameters
     ----------
-    vec1, vec2: `~numpy.ndarray`
-        vectors (or arrays of vectors) between which to compute the angular
-        separation in 3-dimensional Euclidean space
+    direction : `array_like`
+        3-vector defining the direction along which to
+        re-orient the x-axis
 
     Returns
     -------
-    delta : `float` or `~numpy.ndarray`
-        angular separation between `vec1` and `vec2`, by convention in the
-        semi-open interval ``[0, 2*pi)``
+    axis : `~numpy.ndarray`
+        3-vector defining the axis of rotation
+
+    angle : `float`
+        rotation angle (radians), lies within range ``[0, pi]``
     """
-    # take vector components
-    (x1, y1, z1) = numpy.asarray(vec1).T
-    (x2, y2, z2) = numpy.asarray(vec2).T
-    # work out geometric quantities
-    norm1 = numpy.sqrt(x1**2 + y1**2 + z1**2)
-    norm2 = numpy.sqrt(x2**2 + y2**2 + z2**2)
-    cross = numpy.sqrt((y1*z2 - y2*z1)**2 +
-                       (z1*x2 - z2*x1)**2 +
-                       (x1*y2 - x2*y1)**2)
-    dot = x1 * x2 + y1 * y2 + z1 * z2
-    cosd = dot / (norm1 * norm2)
-    sind = cross / (norm1 * norm2)
-    # return angular separation
-    return numpy.arctan2(sind, cosd) % (2 * numpy.pi)
+    reference = numpy.array((1, 0, 0))
+    direction = numpy.asarray(direction) / norm(direction)
+    # non-rotation
+    if numpy.allclose(direction, reference):
+        return (reference, 0)
+    # under-determined rotation
+    elif numpy.allclose(direction, -reference):
+        return (numpy.array((0, 0, 1)), numpy.pi)
+    # general rotation
+    axis = numpy.cross(
+        reference,
+        direction,
+    )
+    angle = numpy.arccos(
+        numpy.dot(
+            reference,
+            direction,
+        ),
+    )
+    return (axis, angle)
+
+
+def rotate(vec, angle, axis):
+    """Rotate 3-vector(s) through an angle about some axis
+
+    Parameters
+    ----------
+    vec : `array_like`
+        Cartesian 3-vector(s) to rotate, must have shape either ``(3, )``
+        for a single vector or ``(N, 3)`` for a collection of N vectors
+
+    angle : `float`
+        rotation angle (radians)
+
+    axis : `array_like`
+        any 3-vector co-aligned with the axis around which to rotate
+
+    Returns
+    -------
+    rotated : `~numpy.ndarray`
+        rotated versions of the input ``vec``
+
+    Notes
+    -----
+    This utility obeys the right-hand rule, so rotations about ``axis`` are
+    counter-clockwise. For clockwise rotation, please pass the negative of
+    ``angle`` or ``axis`` to reverse the orientation.
+
+    See also
+    --------
+    pyschild.SkyMap.rotate
+        method to re-orient a `SkyMap` instance along a given direction
+    """
+    (x, y, z) = numpy.asarray(vec).T
+    axis = numpy.asarray(axis) / norm(axis)
+    # special matrices
+    ident = numpy.identity(3)
+    levciv = numpy.zeros((3, 3, 3))
+    levciv[0, 1, 2] = levciv[1, 2, 0] = levciv[2, 0, 1] = 1
+    levciv[0, 2, 1] = levciv[2, 1, 0] = levciv[1, 0, 2] = -1
+    # construct and apply rotation matrix
+    rot = (numpy.cos(angle) * ident +
+           (1 - numpy.cos(angle)) * numpy.outer(axis, axis) -
+           numpy.sin(angle) * (levciv @ axis))
+    return numpy.array((
+        rot[0, 0] * x + rot[0, 1] * y + rot[0, 2] * z,
+        rot[1, 0] * x + rot[1, 1] * y + rot[1, 2] * z,
+        rot[2, 0] * x + rot[2, 1] * y + rot[2, 2] * z,
+    )).T
 
 
 def power_sample(start, stop, num=50, base=2, **kwargs):

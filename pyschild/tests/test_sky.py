@@ -26,8 +26,10 @@ import pathlib
 import pytest
 import shutil
 
-from numpy.testing import (assert_array_equal,
-                           assert_raises)
+from numpy.testing import (
+    assert_array_equal,
+    assert_raises,
+)
 
 from astropy import units
 
@@ -270,7 +272,7 @@ class TestSkyMap(object):
         """Test `SkyMap.saturate`
         """
         skymap = 2 * self.TEST_SKY_MAP
-        saturated = skymap.saturate(inplace=False)
+        saturated = skymap.saturate()
         assert skymap.value.max() != 1
         assert saturated.value.max() == 1
         assert skymap.size == saturated.size
@@ -292,13 +294,39 @@ class TestSkyMap(object):
             ),
         )
 
+    def test_rotate(self):
+        """Test `SkyMap.rotate`
+        """
+        skymap = self.TEST_SKY_MAP
+
+        # test no rotation
+        rotated = skymap.rotate((1, 0, 0))
+        assert isinstance(rotated, self.TEST_CLASS)
+        assert rotated.flags.owndata is True
+        assert rotated.nest is skymap.nest
+        assert rotated.npix == skymap.npix
+        assert rotated.nside == skymap.nside
+        assert_array_equal(rotated.value, skymap.value)
+
+        # test non-trivial rotation
+        direction = numpy.random.rand(3)
+        rotated = skymap.rotate(direction)
+        assert rotated.size == skymap.size
+        assert rotated.nside == skymap.nside
+        assert numpy.setdiff1d(
+            rotated.value,
+            skymap.value,
+        ).size == 0
+
     def test_lens(self):
         """Test `SkyMap.lens`
         """
         r = 69
         skymap = self.TEST_SKY_MAP
         lensed = skymap.lens(r)
-        assert lensed.nest == skymap.nest
+        assert isinstance(lensed, self.TEST_CLASS)
+        assert lensed.flags.owndata is True
+        assert lensed.nest is skymap.nest
         assert lensed.npix == skymap.npix
         assert lensed.nside == skymap.nside
         assert lensed.value.max() == skymap.value.max()
