@@ -146,8 +146,8 @@ def integrand(r, b):
     This uses geometrized units (``G = c = 1``) and is written in terms
     of ``r / M``, so ``b`` and all terms of the potential are unitless.
 
-    The integrand here accumulates a minus sign because it is used below
-    to trace photon trajectories from a given spacetime event back to past
+    The integrand here accumulates a minus sign because it is used to
+    trace photon trajectories from a given spacetime event back to past
     null infinity.
 
     See also

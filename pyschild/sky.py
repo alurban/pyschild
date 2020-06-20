@@ -455,15 +455,10 @@ class SkyMap(numpy.ndarray):
         """Angles corresponding to pixels of this `SkyMap`
 
         Returns a tuple of ``(zenith, azimuth)``, where ``zenith`` is an array
-        corresponding to zenith angles (more precisely, either latitude or
-        colatitude) and ``azimuth`` is an array of azimuth (or longitude)
-        angles, e.g.
+        corresponding to zenith angles (also called colatitude angles) and
+        ``azimuth`` is an array of azimuth (or longitude) angles, e.g.
 
         >>> (theta, phi) = skymap.angles
-
-        These angles are an instance of `~astropy.units.Quantity` with
-        explicit units, either degrees (for latitude/longitude) or radians
-        (for zenith/azimuth).
         """
         return healpy.pix2ang(self.nside, self.pindex, nest=self.nest)
 
@@ -478,7 +473,7 @@ class SkyMap(numpy.ndarray):
         >>> directions = skymap.directions
 
         Because these are unit vectors, an element-wise quadrature sum
-        will give unity, i.e. ``array([norm(x) for x in directions])``
+        will give unity, i.e. ``array([sqrt(x @ x) for x in directions])``
         is functionally equivalent to `~numpy.ones(self.size)`.
         """
         return numpy.array(
@@ -693,7 +688,8 @@ class SkyMap(numpy.ndarray):
 
         location : `array_like`, optional
             unit vector defining the direction to BH center
-            on the observer's sky
+            on the observer's sky, default: ``(1, 0, 0)``
+            (the observer's positive x-axis)
 
         **kwargs : `dict`, optional
             additional keyword arguments to
@@ -703,7 +699,7 @@ class SkyMap(numpy.ndarray):
         -------
         lensed : `SkyMap`
             copy of this `SkyMap` with a non-spinning black hole in the
-            ``(1, 0, 0)`` direction and consequent gravitational lensing
+            ``location`` direction and consequent gravitational lensing
 
         Example
         -------
