@@ -165,7 +165,7 @@ class Star(object):
         This method represents the point-spread function of the receiver
         device as a simple Gaussian in ``self.theta`` and ``self.phi``,
         implicitly assuming the apparent angular size of the star is small
-        enough that period boundary conditions can be neglected.
+        enough that periodic boundary conditions can be neglected.
 
         See also
         --------

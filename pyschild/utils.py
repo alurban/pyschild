@@ -40,7 +40,7 @@ def get_rotation_axis(direction):
     Returns
     -------
     axis : `~numpy.ndarray`
-        3-vector defining the axis of rotation
+        unit 3-vector defining the axis of rotation
 
     angle : `float`
         rotation angle (radians), lies within range ``[0, pi]``
@@ -90,8 +90,8 @@ def rotate(vec, angle, axis):
     Notes
     -----
     This utility obeys the right-hand rule, so rotations about ``axis`` are
-    counter-clockwise. For clockwise rotation, please pass the negative of
-    ``angle`` or ``axis`` to reverse the orientation.
+    counter-clockwise. For clockwise rotation, pass the negative of either
+    ``angle`` or ``axis`` (but not both) to reverse the orientation.
 
     See also
     --------
@@ -140,7 +140,7 @@ def power_sample(start, stop, num=50, base=2, **kwargs):
     Returns
     -------
     samples : `~numpy.ndarray`
-        ``num`` equally spaced samples in either the closed interval
+        ``num`` power-law spaced samples in either the closed interval
         ``[start, stop]`` or the half-open interval ``[start, stop)``
         depending on whether ``endpoint`` is `True` or `False`
 
@@ -158,12 +158,12 @@ def power_sample(start, stop, num=50, base=2, **kwargs):
 
 
 def zero_crossings(x):
-    """Convenience function to count zero-crossings in an array
+    """Convenience function to find zero-crossings in an array
 
     Parameters
     ----------
     x : `array_like`
-        array of values within which to count zero-crossings
+        array of values within which to find zero-crossings
 
     Returns
     -------
