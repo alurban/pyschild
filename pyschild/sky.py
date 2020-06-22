@@ -738,7 +738,7 @@ class SkyMap(numpy.ndarray):
         directions = out[images].directions
         thetax = numpy.arctan2(directions.T[2], directions.T[1])
         delta = numpy.arccos(directions @ radial)
-        pinf = null.source_angle(r, **kwargs)(delta)
+        pinf = null.source_angle(r, **kwargs)(delta) - numpy.pi
         # trace photon trajectories
         sources = healpy.vec2pix(
             rotated.nside,

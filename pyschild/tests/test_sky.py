@@ -322,7 +322,7 @@ class TestSkyMap(object):
         """Test `SkyMap.lens`
         """
         r = 69
-        skymap = self.TEST_SKY_MAP
+        skymap = self.TEST_CLASS(numpy.ones(12 * 16**2))
         lensed = skymap.lens(r)
         assert isinstance(lensed, self.TEST_CLASS)
         assert lensed.flags.owndata is True
