@@ -27,6 +27,8 @@ from scipy.interpolate import InterpolatedUnivariateSpline
 
 __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
+ARCMIN = numpy.deg2rad(1) / 60
+
 
 # -- utilities ----------------------------------------------------------------
 
@@ -81,22 +83,19 @@ def impact_parameter(r, delta):
 
     delta : `float` or `array_like`
         angle (radians) between the radial direction and the
-        instantaneous 3-velocity of a photon
+        instantaneous 4-velocity of a photon
 
     Returns
     -------
-    b : `float` or `array_like`
+    b : `float` or `~numpy.ndarray`
         impact parameter correspending to these initial conditions,
-        scalar if ``delta`` is scalar else an array the same length
+        scalar if ``delta`` is scalar else an array the same size
         as ``delta``
     """
-    rdot = numpy.cos(delta)
-    h = r * numpy.sin(delta)
-    gamma = numpy.sqrt(
-        (rdot**2 +
-         2 * radial_potential(r, h))
-    )
-    return numpy.abs(h / gamma)
+    sqrtr = numpy.sqrt(r / 2)
+    num = r * sqrtr * numpy.sin(delta)
+    denom = sqrtr - numpy.cos(delta)
+    return num / denom
 
 
 def closest_approach(b):
@@ -113,11 +112,22 @@ def closest_approach(b):
         radial coordinate of closest approach, will be zero if
         ``b < 3 * 3**(1/2)``
     """
-    if b < 3 * numpy.sqrt(3):
+    if b < numpy.sqrt(27):
         return 0
     # find the appropriate polynomial root
     roots = numpy.roots([1, 0, -b**2, 2*b**2])
     return roots[1]
+
+
+def critical_angle(r):
+    """Minimum local azimuthal angle to receive inbound photons
+
+    This utility essentially determines the azimuthal size of a black hole
+    relative to a spacetime event at fixed radial coordinate ``r``
+    """
+    num = r * numpy.sqrt(r / 2) - (r - 3) * numpy.sqrt(3 + r / 2)
+    denom = numpy.sqrt(27) * (1 + numpy.sqrt(r / 2))
+    return numpy.pi - 2 * numpy.arctan2(denom, num)
 
 
 def integrand(r, b):
@@ -160,7 +170,7 @@ def integrand(r, b):
     return (-1 / denom)
 
 
-def phi_inf(r, delta, **kwargs):
+def far_azimuth(r, delta, **kwargs):
     """Azimuthal coordinate of an inbound photon at past null infinity
 
     This utility is a wrapper around `~scipy.integrate.quad` that integrates
@@ -174,8 +184,8 @@ def phi_inf(r, delta, **kwargs):
         unitless radial coordinate
 
     delta : `float`
-        angle (radians) between the radial direction and the
-        instantaneous 3-velocity of a photon
+        angle (radians) between the ingoing radial direction and
+        the instantaneous 4-velocity of a photon
 
     **kwargs : `dict`, optional
         additional keyword arguments to `~scipy.integrate.quad`
@@ -193,37 +203,38 @@ def phi_inf(r, delta, **kwargs):
     integrand
         integrand to find angular deflection along null geodesics
     """
-    # unwrap delta between [-pi, pi)
     (delta, ) = numpy.unwrap([delta])
-    # orbital properties
-    ingoing = (abs(delta) < numpy.pi / 2)
     b = impact_parameter(r, delta)
-    r0 = closest_approach(b)
-    # integrate ingoing orbits
-    if ingoing and r0 == 0:
-        warnings.warn(
-            "Orbit along delta = {} is absorbed".format(delta),
-            RuntimeWarning,
-        )
-        return numpy.nan
-    elif ingoing:
-        (final1, _) = quad(integrand, r0, r,
-                           args=(b, ), **kwargs)
-        (final2, _) = quad(integrand, r0, numpy.inf,
-                           args=(b, ), **kwargs)
-        return final1 + final2
+    # if outside the photon sphere,
     # integrate outgoing orbits
+    if r > 3:
+        dcrit = numpy.arccos(numpy.sqrt(2 / r))
+        outgoing = (abs(delta) < dcrit)
+        r0 = closest_approach(b)
+        if outgoing and r0 == 0:
+            warnings.warn(
+                "Trapped orbit along angle = {}".format(delta),
+                RuntimeWarning,
+            )
+            return numpy.nan
+        elif outgoing:
+            (final1, _) = quad(integrand, r0, r,
+                               args=(b, ), **kwargs)
+            (final2, _) = quad(integrand, r0, numpy.inf,
+                               args=(b, ), **kwargs)
+            return final1 + final2
+    # else integrate ingoing orbits
     (final, _) = quad(integrand, r, numpy.inf,
                       args=(b, ), **kwargs)
     return final
 
 
-def source_angle(r, ninterp=101, **kwargs):
-    """Determine the source angle as a function of viewing angle
+def source_angle(r, ninterp=501, resol=ARCMIN, **kwargs):
+    """Determine the source angle as a function of azimuthal angle
 
-    This utility is a wrapper around :func:`pyschild.orbit.null.phi_inf`
-    that returns a callable function. At fixed ``r``, this function is
-    the interpolated source angle as a function of viewing angle away
+    This utility is a wrapper around :func:`pyschild.orbit.null.far_azimuth`
+    that returns a callable function. At fixed ``r``, this function is the
+    interpolated source angle as a function of local azimuthal angle away
     from the ingoing radial direction.
 
     Parameters
@@ -232,7 +243,12 @@ def source_angle(r, ninterp=101, **kwargs):
         unitless radial coordinate
 
     ninterp : `int`, optional
-        number of points to sample (logarithmically) for interpolation
+        number of points to sample (logarithmically) for interpolation,
+        default: 501
+
+    resol : `float`, optional
+        angular resolution (radians) for determining black hole size,
+        default: 0.000290888 (1 arcminute)
 
     **kwargs : `dict`, optional
         additional keyword arguments to `~scipy.integrate.quad`
@@ -240,25 +256,25 @@ def source_angle(r, ninterp=101, **kwargs):
     Returns
     -------
     angle : `callable`
-        a continuous function of viewing angle returning the source angle
-        from this fixed radial coordinate
+        a continuous function of local azimuthal angle returning the
+        source angle at fixed radial coordinate
 
     Notes
     -----
     The output callable function ``angle`` will raise a `ValueError` for
-    photons that fall past the event horizon, i.e. for inward viewing angles
-    with impact parameter ``b <= 3 * sqrt(3)``.
+    photons that fall past the event horizon, i.e. for ingoing null rays
+    with impact parameter ``b <= sqrt(27)``.
 
     See also
     --------
-    phi_inf
+    far_azimuth
         the utility which numerically integrates along null geodesics
     scipy.interpolate.InterpolatedBivariateSpline
-        interpolates between viewing angles to return a continuous function
+        the interpolation algorithm used here
     """
-    psi = numpy.arcsin(numpy.sqrt(27) / r)
+    psi = critical_angle(r) + resol
     delta = numpy.geomspace(psi, numpy.pi, num=ninterp)
-    final = numpy.array([phi_inf(r, d, **kwargs) for d in delta])
+    final = numpy.array([far_azimuth(r, d, **kwargs) for d in delta])
     # reject non-finite values and extend to 2*pi
     finite = (numpy.isfinite(final)).nonzero()
     domain = numpy.concatenate((

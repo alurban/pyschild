@@ -718,19 +718,19 @@ class SkyMap(numpy.ndarray):
             to past null infinity
         """
         radial = (1, 0, 0)
+        resol = self.resolution.to("rad").value
         rotated = self.rotate(location)
         (axis, angle) = utils.get_rotation_axis(location)
         oldx = utils.rotate(radial, -angle, axis)
         out = numpy.zeros_like(self)
-        # exclude BH apparent size
-        psi = numpy.arcsin(
-            numpy.sqrt(27) / r)
+        # exclude BH azimuthal size
+        psi = null.critical_angle(r)
         images = numpy.setdiff1d(
             out.pindex,
             healpy.query_disc(
                 out.nside,
                 radial,
-                psi,
+                psi + resol,
                 nest=out.nest,
             ),
         )
@@ -738,7 +738,7 @@ class SkyMap(numpy.ndarray):
         directions = out[images].directions
         thetax = numpy.arctan2(directions.T[2], directions.T[1])
         delta = numpy.arccos(directions @ radial)
-        pinf = null.source_angle(r, **kwargs)(delta) - numpy.pi
+        pinf = null.source_angle(r, resol=resol, **kwargs)(delta) - numpy.pi
         # trace photon trajectories
         sources = healpy.vec2pix(
             rotated.nside,

@@ -56,9 +56,9 @@ def test_impact_parameter():
     """Test :func:`pyschild.orbit.null.impact_parameter`
     """
     r = 30
-    psi = numpy.arcsin(numpy.sqrt(27) / r)
+    psi = null.critical_angle(r)
     b = null.impact_parameter(r, psi)
-    assert_allclose(b, numpy.sqrt(27), rtol=1.5e-3)
+    assert_allclose(b, numpy.sqrt(27))
 
 
 def test_closest_approach():
@@ -68,7 +68,17 @@ def test_closest_approach():
     assert null.closest_approach(0) == 0
 
     # test with marginal impact parameter
-    assert_allclose(null.closest_approach(3 * numpy.sqrt(3)), 3)
+    assert_allclose(null.closest_approach(numpy.sqrt(27)), 3)
+
+
+def test_critical_angle():
+    """Test :func:`pyschild.orbit.null.critical_angle
+    """
+    # test at singularity
+    assert null.critical_angle(0) == numpy.pi / 2
+
+    # test at horizon crossing
+    assert_allclose(null.critical_angle(2), numpy.arccos(23 / 31))
 
 
 def test_integrand():
@@ -83,19 +93,23 @@ def test_integrand():
     )
 
 
-def test_phi_inf():
-    """Test :func:`pyschild.orbit.null.phi_inf`
+def test_far_azimuth():
+    """Test :func:`pyschild.orbit.null.far_azimuth`
     """
     # test an escaped photon
-    escaped = null.phi_inf(6, numpy.pi)
+    escaped = null.far_azimuth(6, numpy.pi)
     assert_allclose(escaped, 0, atol=1.5e-16)
 
     # test an absorbed photon
     with pytest.warns(RuntimeWarning) as record:
-        absorbed = null.phi_inf(6, 0)
+        absorbed = null.far_azimuth(6, 0)
     assert record[0].message.args[0] == (
-        "Orbit along delta = 0.0 is absorbed")
+        "Trapped orbit along angle = 0.0")
     assert numpy.isnan(absorbed)
+
+    # test from behind the horizon
+    incoming = null.far_azimuth(1, numpy.pi)
+    assert_allclose(incoming, 0, atol=1e-16)
 
 
 def test_source_angle():
