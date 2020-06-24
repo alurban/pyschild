@@ -652,13 +652,17 @@ class SkyMap(numpy.ndarray):
                                     nest=self.nest, **kwargs)
         return self[indices]
 
-    def rotate(self, direction):
+    def rotate(self, axis, angle):
         """Re-orient the x-axis of this `SkyMap` via rotation
 
         Parameters
         ----------
-        direction : `array_like`
-            Cartesian vector along which the x-axis will be re-oriented
+        axis : `array_like`
+            Cartesian 3-vector describing the axis of rotation
+
+        angle : `float`
+            angle (radians) of rotation about ``axis``,
+            by convention this will be counterclockwise
 
         Returns
         -------
@@ -666,8 +670,6 @@ class SkyMap(numpy.ndarray):
             the rotated sky map
         """
         out = self.copy()
-        # get rotation axis and angle
-        (axis, angle) = utils.get_rotation_axis(direction)
         # rotate individual pixels
         rotated = healpy.vec2pix(
             self.nside,
@@ -719,9 +721,8 @@ class SkyMap(numpy.ndarray):
         """
         radial = (1, 0, 0)
         resol = self.resolution.to("rad").value
-        rotated = self.rotate(location)
         (axis, angle) = utils.get_rotation_axis(location)
-        oldx = utils.rotate(radial, -angle, axis)
+        rotated = self.rotate(axis, angle)
         out = numpy.zeros_like(self)
         # exclude BH azimuthal size
         psi = null.critical_angle(r)
@@ -747,7 +748,6 @@ class SkyMap(numpy.ndarray):
             numpy.sin(pinf) * numpy.sin(thetax),
             nest=rotated.nest,
         )
-        out[images] += rotated[sources]
-        # return to original orientation
-        out = out.rotate(oldx)
-        return out
+        out[images] = rotated[sources]
+        # return at original orientation
+        return out.rotate(axis, -angle)

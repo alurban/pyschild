@@ -300,7 +300,7 @@ class TestSkyMap(object):
         skymap = self.TEST_SKY_MAP
 
         # test no rotation
-        rotated = skymap.rotate((1, 0, 0))
+        rotated = skymap.rotate((1, 0, 0), 0)
         assert isinstance(rotated, self.TEST_CLASS)
         assert rotated.flags.owndata is True
         assert rotated.nest is skymap.nest
@@ -309,8 +309,9 @@ class TestSkyMap(object):
         assert_array_equal(rotated.value, skymap.value)
 
         # test non-trivial rotation
-        direction = numpy.random.rand(3)
-        rotated = skymap.rotate(direction)
+        axis = numpy.random.rand(3)
+        angle = 2 * numpy.pi * numpy.random.random()
+        rotated = skymap.rotate(axis, angle)
         assert rotated.size == skymap.size
         assert rotated.nside == skymap.nside
         assert numpy.setdiff1d(
