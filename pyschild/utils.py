@@ -28,7 +28,7 @@ __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
 # -- utilities ----------------------------------------------------------------
 
-def get_rotation_axis(direction):
+def get_rotation(direction):
     """Convenience function to get the angle and axis of a rotation
 
     Parameters

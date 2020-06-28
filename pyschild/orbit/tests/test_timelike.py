@@ -81,12 +81,48 @@ def test_radial_force():
 def test_velocity():
     """Test :func:`pyschild.orbit.timelike.velocity`
     """
-    r = 6
-    rdot = 0.5
-    beta = timelike.velocity(r, rdot, 0)
-    lhs = rdot**2 / (1 - 2 / r)
-    assert beta == numpy.sqrt(lhs / (1 + lhs))
-    assert (beta > 0) and (beta < 1)
+    r = 6  # ISCO
+    rdot = numpy.random.random()
+    phidot = numpy.random.random()
+    assert timelike.velocity(r, rdot, phidot) < 1
+
+    r = 2  # horizon crossing
+    assert timelike.velocity(r, rdot, phidot) == 1
+
+    r = 1  # beneath the horizon
+    assert timelike.velocity(r, -numpy.sqrt(2 / r), 0) > 1
+
+
+def test_aberration_angle():
+    """Test :func:`pyschild.orbit.timelike.aberration_angle`
+    """
+    # ISCO
+    delta = numpy.pi / 2
+    psi = timelike.aberration_angle(
+        delta, 6, 0, numpy.sqrt(12) / 36)
+    assert_allclose(psi, 3.10086486)
+
+    # horizon crossing
+    psi = timelike.aberration_angle(delta, 2, -1, 0)
+    assert_allclose(psi, delta)
+
+    # radially plunging observer
+    delta = numpy.pi * numpy.random.rand(101)
+    r = numpy.linspace(2, 10, num=101)
+    rdot = -numpy.sqrt(2 / r)
+    psi = timelike.aberration_angle(delta, r, rdot, 0)
+    assert_allclose(psi, delta)
+
+    # stationary observer
+    psi = timelike.aberration_angle(delta, r, 0, 0)
+    assert not numpy.allclose(psi, delta)
+    assert psi[0] == 0
+
+    # failure mode behind the event horizon
+    with pytest.raises(ValueError) as exc:
+        timelike.aberration_angle(delta, 1, 0, 0)
+    assert str(exc.value) == ("No stationary observers "
+                              "behind the event horizon")
 
 
 def test_initial_values():

@@ -33,21 +33,21 @@ __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
 # -- test utilities -----------------------------------------------------------
 
-def test_get_rotation_axis():
-    """Test :func:`pyschild.utils.get_rotation_axis`
+def test_get_rotation():
+    """Test :func:`pyschild.utils.get_rotation`
     """
     # non-rotation
-    (axis1, angle1) = utils.get_rotation_axis((1, 0, 0))
+    (axis1, angle1) = utils.get_rotation((1, 0, 0))
     assert angle1 == 0
     assert_array_equal(axis1, (1, 0, 0))
 
     # under-determined rotation
-    (axis2, angle2) = utils.get_rotation_axis((-1, 0, 0))
+    (axis2, angle2) = utils.get_rotation((-1, 0, 0))
     assert angle2 == numpy.pi
     assert_array_equal(axis2, (0, 0, 1))
 
     # more general rotation
-    (axis3, angle3) = utils.get_rotation_axis((0, 1, 0))
+    (axis3, angle3) = utils.get_rotation((0, 1, 0))
     assert_allclose(angle3, numpy.pi / 2)
     assert_allclose(axis3, (0, 0, 1))
 

@@ -25,7 +25,7 @@ import numpy
 from astropy import units
 
 from . import utils
-from .orbit import null
+from .orbit import (null, timelike)
 
 __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
@@ -213,7 +213,9 @@ class SkyMap(numpy.ndarray):
         """Properly re-size indices/values when handling slices
         """
         new = super().__getitem__(key)
-        return type(self)(new, pindex=self.pindex[key], nside=self.nside,
+        newindex = (self.pindex[key] if numpy.size(key) != self.size
+                    else self.pindex)
+        return type(self)(new, pindex=newindex, nside=self.nside,
                           info=self.info, nest=self.nest, dtype=self.dtype)
 
     def __add__(self, value):
@@ -669,7 +671,6 @@ class SkyMap(numpy.ndarray):
         out : `SkyMap`
             the rotated sky map
         """
-        out = self.copy()
         # rotate individual pixels
         rotated = healpy.vec2pix(
             self.nside,
@@ -680,7 +681,47 @@ class SkyMap(numpy.ndarray):
         out = self[rotated]
         return out
 
-    def lens(self, r, location=(1, 0, 0), **kwargs):
+    def aberrate(self, r, rdot, phidot):
+        """Apply relativistic aberration to this `SkyMap`
+
+        This method accounts for the angle between the outgoing radial
+        null direction and the (local) line-of-sight to distant sources,
+        relative to the 4-velocity of the observer.
+
+        Parameters
+        ----------
+        r : `float`
+            unitless radial coordinate
+
+        rdot : `float`
+            component of local 4-velocity in the radial direction
+
+        phidot : `float`
+            component of local 4-velocity in the azimuthal direction
+
+        Returns
+        -------
+        out : `SkyMap`
+            copy of this `SkyMap` whose pixels are rearranged to
+            account for relativistic aberration
+
+        See also
+        --------
+        pyschild.orbit.timelike.aberration_angle
+            utility which determines the aberration angle for locally
+            inbound photons
+        """
+        out = self.rotate((0, 1, 0), -numpy.pi / 2)
+        # in this orientation, the colatitude angle can
+        # just be replaced with the aberration angle
+        (theta, phi) = out.angles
+        psi = timelike.aberration_angle(theta, r, rdot, phidot)
+        images = healpy.ang2pix(out.nside, psi, phi, nest=out.nest)
+        out = out[images]
+        # return at original orientation
+        return out.rotate((0, 1, 0), numpy.pi / 2)
+
+    def lens(self, r, location=(1, 0, 0), rdot=None, phidot=None, **kwargs):
         """Apply a Schwarzschild gravitational lens to this `SkyMap`
 
         Parameters
@@ -697,9 +738,20 @@ class SkyMap(numpy.ndarray):
             additional keyword arguments to
             `pyschild.orbit.null.source_angle`
 
+        If either of the following variables are given, the lens will
+        experience relativistic aberration due to motion of the observer:
+
+        rdot : `float`, optional
+            unitless component of 4-velocity along the radial direction,
+            default: `None`
+
+        phidot : `float`, optional
+            unitless component of 4-velocity along the azimuthal direction,
+            default: `None`
+
         Returns
         -------
-        lensed : `SkyMap`
+        out : `SkyMap`
             copy of this `SkyMap` with a non-spinning black hole in the
             ``location`` direction and consequent gravitational lensing
 
@@ -715,13 +767,16 @@ class SkyMap(numpy.ndarray):
 
         See also
         --------
+        SkyMap.aberrate
+            method which accounts for relativistic aberration due to the
+            motion of the observer
         pyschild.orbit.null.source_angle
             the utility which traces photon trajectories back
             to past null infinity
         """
         radial = (1, 0, 0)
         resol = self.resolution.to("rad").value
-        (axis, angle) = utils.get_rotation_axis(location)
+        (axis, angle) = utils.get_rotation(location)
         rotated = self.rotate(axis, angle)
         out = numpy.zeros_like(self)
         # exclude BH azimuthal size
@@ -749,5 +804,8 @@ class SkyMap(numpy.ndarray):
             nest=rotated.nest,
         )
         out[images] = rotated[sources]
+        # account for relativistic aberration
+        if (rdot is not None) or (phidot is not None):
+            out = out.aberrate(r, rdot, phidot)
         # return at original orientation
         return out.rotate(axis, -angle)

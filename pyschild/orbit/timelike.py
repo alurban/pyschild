@@ -44,6 +44,20 @@ Output message: {message}
 
 # -- utilities ----------------------------------------------------------------
 
+def _stationary_aberration_angle(delta, r):
+    """Convenience tool to get the aberration angle for stationary observers
+
+    See :func:`aberration_angle` for the general utility.
+    """
+    if numpy.any(r < 2):
+        raise ValueError("No stationary observers behind the event horizon")
+    from .null import impact_parameter
+    b = impact_parameter(r, numpy.pi - delta)
+    dcrit = numpy.pi - numpy.arccos(numpy.sqrt(2 / r))
+    sgn = numpy.piecewise(delta, (delta >= dcrit, delta < dcrit), (-1, 1))
+    return numpy.arccos(sgn * numpy.sqrt(1 - (1 - 2 / r) * (b / r)**2))
+
+
 def radial_potential(r, h):
     """Effective radial potential for timelike Schwarzschild orbits
 
@@ -154,15 +168,91 @@ def velocity(r, rdot, phidot):
     Returns
     -------
     beta : `float` or `~numpy.ndarray`
-        magnitude of the local 3-velocity
+        magnitude of the local unitless 3-velocity
 
     References
     ----------
     .. [1] Wikipedia, "Schwarzschild geodesics,"
            https://en.wikipedia.org/wiki/Schwarzschild_geodesics
     """
-    lhs = rdot**2 / (1 - 2 / r) + r**2 * phidot**2
-    return numpy.sqrt(lhs / (1 + lhs))
+    h = r**2 * phidot
+    gamma2 = 1 + rdot**2 + 2 * radial_potential(r, h)
+    return numpy.sqrt(1 - (1 - 2 / r) / gamma2)
+
+
+def aberration_angle(delta, r, rdot, phidot):
+    """Determine the aberration angle for relativistic orbital motion
+
+    This observable measures the apparent angle of incidence for incoming
+    photons relative to an observer in motion along a timelike geodesic.
+    The original angle, ``delta``, describes what would be measured at the
+    same altitude by a radially plunging observer who started from rest at
+    infinity.
+
+    Parameters
+    ----------
+    delta : `array_like`
+        viewing angle relative to a radially plunging observer
+
+    r : `array_like`
+        unitless radial coordinate along a geodesic
+
+    rdot : `array_like`
+        unitless derivative of ``r`` with respect to proper time
+        along a geodesic
+
+    phidot : `array_like`
+        unitless derivative of azimuthal coordinate with respect
+        to proper time along a geodesic
+
+    Returns
+    -------
+    psi : `float` or `~numpy.ndarray`
+        angle of incidence measured by the observer along this geodesic
+
+    References
+    ----------
+    .. [1] D. Lebedev and K. Lake, arXiv:1609.05183 (2016)
+
+    .. [2] H. Arakida, arXiv:1808.03418
+
+    See also
+    --------
+    pyschild.sky.SkyMap.aberrate
+        method to impose relativistic aberration on an observer's entire sky
+    """
+    # stationary observers
+    if numpy.array_equal(rdot, 0) and numpy.array_equal(phidot, 0):
+        return _stationary_aberration_angle(delta, r)
+    # geometric quantities
+    gamma = numpy.sqrt(
+        1 + rdot**2 +  # generalized Lorentz factor
+        2 * radial_potential(r, r**2 * phidot))
+    sqrtr = numpy.sqrt(r / 2)
+    sind = numpy.sin(delta)
+    cosd = numpy.cos(delta)
+    # local velocities
+    # transverse velocity is cast to complex to handle r < 2
+    vperp = numpy.sqrt(r * (r - 2) + 0j) * phidot / gamma
+    vpar = rdot / gamma
+    vsq = vpar**2 + (vperp**2).real
+    # vector products
+    # factor by `gtt * (1 - vsq)` for cleanliness
+    # and cast a product of imaginary numbers to float
+    wdotk = (r - 2) * (1 - vsq) * (1 - cosd)
+    udotw = 2 * (1 - sqrtr) * (1 - vpar)
+    udotk = (sqrtr + vpar - (1 + sqrtr * vpar) * cosd -
+             (numpy.sqrt(r / 2 - 1 + 0j) * vperp).real * sind)
+    # compute aberration angle
+    ok = numpy.asarray(r != 2)
+    if numpy.all(ok):
+        return numpy.arccos(1 + wdotk / (udotk * udotw))
+    # evaluate the limit as r --> 2
+    psi = (numpy.ones_like(wdotk) *
+           aberration_angle(delta, 2 + 1e-15, rdot, phidot))
+    if numpy.iterable(ok):
+        psi[ok] = numpy.arccos(1 + wdotk[ok] / (udotk[ok] * udotw[ok]))
+    return psi
 
 
 def initial_values(ecc, h=HISCO, phi0=numpy.pi/2):

@@ -203,6 +203,8 @@ class TestSkyMap(object):
         """Test that array subsets are also `SkyMap` instances
         """
         skymap = self.TEST_SKY_MAP
+
+        # proper subset
         slice_ = slice(2, 40, 3)
         subset_map = skymap[slice_]
         assert isinstance(subset_map, self.TEST_CLASS)
@@ -210,6 +212,13 @@ class TestSkyMap(object):
         assert subset_map.nside == skymap.nside
         assert_array_equal(subset_map.value, skymap.value[slice_])
         assert_array_equal(subset_map.pindex, skymap.pindex[slice_])
+
+        # pixel reordering
+        newindex = skymap.pindex[::-1]
+        new_map = skymap[newindex]
+        assert not new_map.partial
+        assert_array_equal(new_map.value, skymap.value[::-1])
+        assert_array_equal(new_map.pindex, skymap.pindex)
 
     def test_attributes(self):
         """Test basic, default attributes are set on creation
@@ -318,6 +327,21 @@ class TestSkyMap(object):
             rotated.value,
             skymap.value,
         ).size == 0
+
+    def test_aberrate(self):
+        """Test `SkyMap.aberrate`
+        """
+        r = 30
+        skymap = self.TEST_SKY_MAP
+        aberrated = skymap.aberrate(r, numpy.sqrt(2 / r), 0)
+        assert isinstance(aberrated, self.TEST_CLASS)
+        assert aberrated.flags.owndata is True
+        assert aberrated.nest is skymap.nest
+        assert aberrated.npix == skymap.npix
+        assert aberrated.nside == skymap.nside
+        assert aberrated.value.max() == skymap.value.max()
+        assert_array_equal(aberrated.pindex, skymap.pindex)
+        assert not numpy.array_equal(aberrated.value, skymap.value)
 
     def test_lens(self):
         """Test `SkyMap.lens`
