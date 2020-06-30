@@ -1,9 +1,11 @@
 # PySchild core requirements
 astropy >= 3.0.0
+coloredlogs
 gwpy >= 1.0.0
 healpy
 matplotlib >= 3.0.0
 numpy >= 1.16.0
+pytz
 scipy >= 1.2.0
 # test requirements
 pytest >= 3.3.0

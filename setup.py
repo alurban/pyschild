@@ -43,10 +43,12 @@ setup_requires = get_setup_requires()
 # runtime dependencies
 install_requires = [
     'astropy >= 3.0.0',
+    'coloredlogs',
     'gwpy >= 1.0.0',
     'healpy',
     'matplotlib >= 3.1.0',
     'numpy >= 1.16.0',
+    'pytz',
     'scipy >= 1.2.0',
 ]
 
@@ -82,7 +84,11 @@ setup(
 
     # package content
     packages=find_packages(),
-    entry_points={},
+    entry_points={
+        "console_scripts": [
+            "pyschild-orbit=pyschild.orbit.__main__:main",
+        ],
+    },
     include_package_data=True,
 
     # dependencies

@@ -33,6 +33,18 @@ __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
 # -- test utilities -----------------------------------------------------------
 
+def test_format_scientific():
+    """Test :func:`pyschild.utils.format_scientific`
+    """
+    # raw float
+    small = utils.format_scientific(1)
+    assert small == '1.000'
+
+    # large number
+    large = utils.format_scientific(1e5)
+    assert large == '1.000 \\times 10^{5}'
+
+
 def test_get_rotation():
     """Test :func:`pyschild.utils.get_rotation`
     """

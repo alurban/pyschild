@@ -28,6 +28,14 @@ __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
 # -- utilities ----------------------------------------------------------------
 
+def format_scientific(x):
+    """Format a floating-point number in TeX-friendly scientific notation
+    """
+    n = int(numpy.floor(numpy.log10(x)))
+    return ('%.3f' % x if (n >= -1 and n <= 3) else
+            r'%.3f \times 10^{%d}' % (x / 10**n, n))
+
+
 def get_rotation(direction):
     """Convenience function to get the angle and axis of a rotation
 

@@ -22,8 +22,6 @@
         plotting utilities run to completion.
 """
 
-import pytest
-
 from matplotlib.pyplot import Figure
 
 from .. import (timelike, plot)
@@ -36,22 +34,15 @@ __author__ = "Alex Urban <alexander.urban@ligo.org>"
 def test_potential():
     """Test :func:`pyschild.orbit.plot.potential`
     """
-    fig = plot.potential(0.5, title="Test potential")
+    fig = plot.potential(1, 5, title="Test potential")
     assert isinstance(fig, Figure)
-
-    # catch failure mode
-    with pytest.raises(ValueError) as exc:
-        plot.potential(0.1, h=0)
-    assert str(exc.value) == ("Orbital angular momentum must exceed ISCO "
-                              "(where h_ISCO**2 = 12)")
 
 
 def test_diagnostic():
     """Test :func:`pyschild.orbit.plot.diagnostic`
     """
-    y0 = timelike.initial_values(0.5, h=10)
-    (geodesic, duration) = timelike.simulate(
-        y0, timelike.HISCO, tf=1000)
+    y0 = timelike.initial_values(1, 5, ingoing=False)
+    (geodesic, duration) = timelike.simulate(y0, 5)
     fig = plot.diagnostic(geodesic, duration)
     assert isinstance(fig, Figure)
 
@@ -59,8 +50,7 @@ def test_diagnostic():
 def test_track():
     """Test :func:`pyschild.orbit.plot.track`
     """
-    y0 = timelike.initial_values(0.5, h=10)
-    (geodesic, duration) = timelike.simulate(
-        y0, timelike.HISCO, tf=1000)
+    y0 = timelike.initial_values(1, 5, ingoing=False)
+    (geodesic, duration) = timelike.simulate(y0, 5)
     fig = plot.track(geodesic, duration, title="Test track")
     assert isinstance(fig, Figure)

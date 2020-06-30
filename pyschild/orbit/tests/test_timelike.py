@@ -31,6 +31,7 @@ from .. import timelike
 __author__ = "Alex Urban <alexander.urban@ligo.org>"
 
 ANGMOM = 4
+GAMMA = numpy.sqrt(1 + 2 * timelike.radial_potential(6, timelike.HISCO))
 R = numpy.arange(3, 100, 0.1)
 
 
@@ -129,37 +130,37 @@ def test_initial_values():
     """Test :func:`pyschild.orbit.timelike.initial_values`
     """
     # test at ISCO
-    (r, rdot, phi) = timelike.initial_values(0)
-    assert_allclose(r, 6)
-    assert_allclose(rdot, 0)
-    assert_allclose(phi, numpy.pi / 2)
+    (r, rdot, phi) = timelike.initial_values(GAMMA, timelike.HISCO)
+    assert_allclose(r, 6, rtol=1e-4)
+    assert_allclose(rdot, 0, atol=1e-7)
+    assert_allclose(phi, 0)
 
     # test failure mode
     with pytest.raises(ValueError) as exc:
-        timelike.initial_values(0, h=0)
-    assert str(exc.value) == ("Orbital angular momentum must exceed ISCO "
-                              "(where h_ISCO**2 = 12)")
+        timelike.initial_values(0, timelike.HISCO, r0=6)
+    assert str(exc.value) == ("Lorentz factor is too small "
+                              "for the requested radius")
 
 
 def test_rhs():
     """Test :func:`pyschild.orbit.timelike.rhs`
     """
-    y0 = timelike.initial_values(0)
+    y0 = timelike.initial_values(GAMMA, timelike.HISCO)
     rhs = timelike.rhs(0, y0, timelike.HISCO)
-    assert_allclose(rhs, [0, 0, timelike.HISCO / 36], atol=1e-16)
+    assert_allclose(rhs, [0, 0, timelike.HISCO / 36], atol=2e-6)
 
 
 def test_simulate(capsys):
     """Test :func:`pyschild.orbit.timelike.simulate`
     """
     # test at ISCO
-    y0 = timelike.initial_values(0)
+    y0 = timelike.initial_values(GAMMA, timelike.HISCO)
     (isco, duration) = timelike.simulate(
         y0, timelike.HISCO, verbose=True)
     stdout = capsys.readouterr().out
     assert stdout[:-1] == timelike.VERBOSE.format(
         code=0,
-        nfev=32,
+        nfev=38,
         status=0,
         message=("The solver successfully reached the end "
                  "of the integration interval."),
@@ -167,17 +168,13 @@ def test_simulate(capsys):
     times = numpy.arange(duration)
     (r, rdot, phi) = isco(times)
     dphi = numpy.diff(phi)
-    assert_allclose(r, 6)
-    assert_allclose(rdot, 0, atol=1e-14)
-    assert_allclose(dphi, dphi[0])
+    assert_allclose(r, 6, rtol=2e-5)
+    assert_allclose(rdot, 0, atol=2e-8)
+    assert_allclose(dphi, dphi[0], rtol=1e-5)
     assert duration == 20 * numpy.pi * y0[0] ** (3/2)
 
     # test a failure mode
     with pytest.warns(RuntimeWarning) as record:
-        timelike.simulate(
-            timelike.initial_values(0.2),
-            timelike.HISCO,
-            tf=1000,
-        )
+        timelike.simulate(timelike.initial_values(1, 0), 0)
     assert record[0].message.args[0] == ("Required step size is less than "
                                          "spacing between numbers.")

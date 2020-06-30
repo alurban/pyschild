@@ -255,7 +255,7 @@ def aberration_angle(delta, r, rdot, phidot):
     return psi
 
 
-def initial_values(ecc, h=HISCO, phi0=numpy.pi/2):
+def initial_values(gamma, h, r0=None, phi0=0, ingoing=True):
     """Determine initial conditions for timelike orbits
 
     This utility calculates starting values for ``r``, ``rdot``, and ``phi``
@@ -265,17 +265,29 @@ def initial_values(ecc, h=HISCO, phi0=numpy.pi/2):
 
     Parameters
     ----------
-    ecc : `float`
-        orbital eccentricity, must be greater than or equal to zero,
-        values less than 1 are bound orbits while those greater than 1
-        are unbound
+    gamma : `float`
+        generalized Lorentz factor equal to the total energy per rest mass,
+        values less than 1 are bound orbits while those greater than 1 are
+        unbound
 
-    h : `float`, optional
-        unitless specific orbital angular momentum, must be no smaller than
-        `~numpy.sqrt(12)` so the potential can support a circular orbit
+    ..note: For a given value of ``r``, the factor ``gamma`` must
+            be larger than ``(1 + h**2 / r**2) * (1 - 2 / r)``
+            and no smaller than zero
+
+    h : `float`
+        unitless specific orbital angular momentum
+
+    r0 : `float`, optional
+        initial radial coordinate, defaults to either the largest possible
+        apsis (if ``gamma < 1``) or the largest apsis of a nearly-marginal
+        orbit (if ``gamma >= 1``)
 
     phi0 : `float`, optional
-        orbital phase offset, defaults to `~numpy.pi/2`
+        orbital phase offset in radians, default: 0
+
+    ingoing : `bool`, optional
+        whether the orbit is initially falling toward the black hole (`True`)
+        or moving away from it (`False`), default: `True`
 
     Returns
     -------
@@ -285,30 +297,21 @@ def initial_values(ecc, h=HISCO, phi0=numpy.pi/2):
     Raises
     ------
     ValueError
-        if ``h`` does not support a circular orbit, i.e. if ``h**2 < 12``
-
-    Notes
-    -----
-    This utility adopts a convention in which every orbit (bound or unbound)
-    starts outgoing at the radius of a stable local minimum in the potential
-    with given ``h``. In Newtonian physics, this is analogous to starting
-    every orbit at the semi-latus rectum with radial velocity determined
-    by ``ecc`` and ``h``.
-
-    The default for orbital phase is chosen such that the analogous Newtonian
-    orbit has periastron (closest approach) at ``phi = 0``.
+        if the Lorentz factor is too small to be physical
     """
-    if h < HISCO:
-        raise ValueError("Orbital angular momentum must exceed ISCO "
-                         "(where h_ISCO**2 = 12)")
-    # express in terms of circular orbits
-    rcirc = (h / 2) * (h + numpy.sqrt(h**2 - HISCO**2))
-    ecirc = radial_potential(rcirc, h)
-    energy = ecirc * (1 - ecc**2)
-    drdt = numpy.sqrt(
-        2 * (energy -
-             radial_potential(rcirc, h)))
-    return numpy.array([rcirc, drdt, phi0])
+    sgn = -1 if ingoing else 1
+    roots = numpy.roots([
+        1 - min(gamma, 0.99)**2,
+        -2, h**2, -2 * h**2,
+    ])
+    # get initial values
+    r0 = r0 or roots[numpy.isreal(roots)].max().real
+    gcrit = numpy.sqrt((1 + (h / r0)**2) * (1 - 2 / r0))
+    if gamma < gcrit:
+        raise ValueError("Lorentz factor is too small "
+                         "for the requested radius")
+    rdot0 = sgn * numpy.sqrt(gamma**2 - gcrit**2)
+    return numpy.array([r0, rdot0, phi0])
 
 
 def rhs(_t, y, h):

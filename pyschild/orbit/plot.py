@@ -50,18 +50,18 @@ def _potential_well_span(pot, level):
     return (allowed[0], allowed[-1])
 
 
-def potential(ecc, h=timelike.HISCO, npoints=1001, xlim=None, ylim=None,
-              fig=None, figsize=(12, 6), dpi=200, subplot=111, title=None):
+def potential(gamma, h, npoints=1001, xlim=None, ylim=None, fig=None,
+              figsize=(12, 6), dpi=200, subplot=111, title=None):
     """Visualize the radial effective potential for timelike orbits
 
     Parameters
     ----------
-    ecc : `float` or `array_like`
-        eccentricity of the orbit to visualize
+    gamma : `array_like`
+        generalized Lorentz factor (energy per unit rest mass)
+        of the orbit(s) to visualize
 
-    h : `float`, optional
-        unitless specific angular momentum, must be no smaller than
-        `~numpy.sqrt(12)` (the default)
+    h : `float`
+        unitless specific angular momentum
 
     npoints : `int`, optional
         number of points to sample uniformly, default: 1001
@@ -99,7 +99,7 @@ def potential(ecc, h=timelike.HISCO, npoints=1001, xlim=None, ylim=None,
 
     Examples
     --------
-    To visualize a list of orbital eccentricities on a potential diagram:
+    To visualize a list of orbital Lorentz factors on a potential diagram:
 
     >>> from pyschild.orbit import plot
     >>> fig = plot.potential([0.01, 0.2, 0.8, 1.1])
@@ -110,16 +110,12 @@ def potential(ecc, h=timelike.HISCO, npoints=1001, xlim=None, ylim=None,
     pyschild.orbit.timelike.radial_potential
         the (unitless) radial effective potential for timelike orbits
     """
-    if h < timelike.HISCO:
-        raise ValueError("Orbital angular momentum must exceed ISCO "
-                         "(where h_ISCO**2 = 12)")
-    if not numpy.iterable(ecc):
-        ecc = [ecc]
-    # determine energy from circular orbit properties
-    rplus = (h / 2) * (h + numpy.sqrt(h**2 - timelike.HISCO**2))
-    ecirc = timelike.radial_potential(rplus, h)
-    energy = [ecirc * (1 - e**2) for e in ecc]
+    if not numpy.iterable(gamma):
+        gamma = [gamma]
+    energy = [(g - 1) / 2 for g in gamma]
     # determine axis limits
+    href = max(h, timelike.HISCO)
+    rplus = (href / 2) * (href + numpy.sqrt(href**2 - timelike.HISCO**2))
     pfid = -1 * timelike.radial_potential(rplus, h)
     xlim = xlim or (1e-10, 100 * rplus / 6)
     ylim = ylim or (-1.1 * pfid, max(0.75 * pfid, 1.1 * max(energy)))
@@ -133,10 +129,10 @@ def potential(ecc, h=timelike.HISCO, npoints=1001, xlim=None, ylim=None,
     ax.plot(xlim, (0, 0), color='#669999', linestyle='dashed')
     ax.plot(r, potential, zorder=100, linewidth=2, linestyle='dashdot',
             color='#333333', label='$h={:.4g}$'.format(h))
-    for (e, eng) in zip(ecc, energy):
+    for (g, eng) in zip(gamma, energy):
         (imin, imax) = _potential_well_span(potential, eng)
         ax.plot((r[imin], r[imax]), (eng, eng),
-                label=r'$\varepsilon={:.4g}$'.format(e))
+                label=r'$\gamma={:.4g}$'.format(g))
     # indicate the forbidden zone
     ax.fill_between(r, potential, ylim[0], hatch='/', alpha=0.4,
                     facecolor='#ee0000', edgecolor='k')
@@ -216,15 +212,19 @@ def diagnostic(soln, duration, npoints=1000, figsize=(12, 12), dpi=200):
     beta = timelike.velocity(r, rdot, phidot)
     # get constants of the motion
     heval = phidot * r**2
-    eeval = rdot**2 / 2 + timelike.radial_potential(r, heval[0])
+    geval = numpy.sqrt(rdot**2 + (1 + (heval / r)**2) * (1 - 2 / r))
     # get `Signal` objects for each variable
     r = Signal(r, dt=dt)
     ncyc = Signal((phi - phi[0]) / (2 * numpy.pi), dt=dt)
-    beta = Signal(beta, dt=dt)
-    herror = Signal(numpy.abs((heval - heval[0]) / heval[0]), dt=dt)
-    engerr = Signal(numpy.abs((eeval - eeval[0]) / eeval[0]), dt=dt)
+    beta = Signal(timelike.velocity(r, rdot, phidot), dt=dt)
+    herror = Signal(numpy.abs((heval - heval[0]) / heval[0]) if heval[0]
+                    else numpy.abs(heval - heval[0]),
+                    dt=dt)
+    gerror = Signal(numpy.abs((geval - geval[0]) / geval[0]) if geval[0]
+                    else numpy.abs(geval - geval[0]),
+                    dt=dt)
     # construct a figure with five panels
-    fig = Plot(r, ncyc, beta, engerr, herror, figsize=figsize,
+    fig = Plot(r, ncyc, beta, gerror, herror, figsize=figsize,
                separate=True, sharex=False, sharey=False)
     ax = fig.axes
     for i in range(4):
@@ -241,12 +241,16 @@ def diagnostic(soln, duration, npoints=1000, figsize=(12, 12), dpi=200):
     ax[1].set_ylim((0, ncyc.max().value))
     ax[2].set_ylabel(r'$\beta$')
     ax[2].set_ylim((0, max(1, beta.max().value)))
-    ax[3].set_ylabel(r'$E_{{\mathrm{{err}}}}$ rel. to {:.3g}'.format(eeval[0]))
-    ax[3].set_ylim((0.9*engerr[1:].min().value, 1))
-    ax[3].set_yscale('log')
-    ax[4].set_ylabel(r'$h_{{\mathrm{{err}}}}$ rel. to {:.3g}'.format(heval[0]))
-    ax[4].set_ylim((0.9*herror[1:].min().value, 1))
-    ax[4].set_yscale('log')
+    ax[3].set_ylabel(r'$\gamma_{{\mathrm{{err}}}}$ rel. '
+                     'to {:.3g}'.format(geval[0]))
+    gerr = gerror.value[~numpy.isnan(gerror.value)]
+    ax[3].set_ylim((0.9 * gerr[1::].min(), min(gerr.max(), 1)))
+    ax[3].set_yscale('log' if gerror[1::].value.min() else 'linear')
+    ax[4].set_ylabel(r'$h_{{\mathrm{{err}}}}$ rel. '
+                     'to {:.3g}'.format(heval[0]))
+    herr = herror.value[~numpy.isnan(herror.value)]
+    ax[4].set_ylim((0.9 * herr[1::].min(), min(herr.max(), 1)))
+    ax[4].set_yscale('log' if herror[1::].value.min() else 'linear')
     fig.tight_layout()
     return fig
 
