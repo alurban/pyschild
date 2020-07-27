@@ -20,6 +20,7 @@
 """
 
 import numpy
+
 from numpy.random import rand
 
 from astropy.io import registry
@@ -51,6 +52,23 @@ def _uniform_sphere(n):
     theta = numpy.arccos(1 - 2 * rand(n))
     phi = 2 * numpy.pi * rand(n)
     return (theta, phi)
+
+
+def _visual_color(temp, tcool=2500, thot=5e4):
+    """Determine apparent color from surface temperature
+
+    This utility assumes the light source is a perfect blackbody of
+    temperature ``temp``, and returns a tuple of normalized RGB values.
+    """
+    from matplotlib import cm
+    # use matplotlib's Spectral colormap
+    # to assign blackbody-esque colors
+    cmap = cm.get_cmap("Spectral")
+    (temp, tcool, thot) = numpy.log(
+        (temp, tcool, thot))
+    index = (temp - tcool) / (thot - tcool)
+    (red, blue, green, _) = cmap(index)
+    return (red, blue, green)
 
 
 def _brightness_from_mag(mapp):
@@ -117,8 +135,8 @@ class Star(object):
     phi : `float`, optional
         azimuth coordinate (radians) of the star, default: 0
 
-    mag : `float`, optional
-        apparent visual magnitude of the star, default: 0
+    temperature : `float`, optional
+        surface temperature (Kelvin) of the star, default: 5778
 
     angrad : `float`, optional
         apparent angular radius (in radians) on the sky,
@@ -128,13 +146,13 @@ class Star(object):
         normalized value between 0 (dim) and 1 (bright) representing the
         Matplotlib color gradient, default: 1
     """
-    def __init__(self, theta=numpy.pi/2, phi=0,
+    def __init__(self, theta=numpy.pi/2, phi=0, temperature=5778,
                  mag=0, angrad=ARCMIN, brightness=1):
         """Initialize this `Star`
         """
         self.theta = theta
         self.phi = phi
-        self.mag = mag
+        self.temperature = temperature
         self.brightness = brightness
         self.angrad = angrad
 
@@ -158,7 +176,7 @@ class Star(object):
         -------
         out : `SkyMap`
             a version of ``sky`` with pixels populated representing
-            this `Star` relative to the observer
+            this `Star` relative to the observer in color and brightness
 
         Notes
         -----
@@ -177,13 +195,19 @@ class Star(object):
         if not isinstance(skymap, SkyMap):
             raise TypeError("Input must be an instance of SkyMap")
         out = skymap.copy() if copy else skymap
-        # illuminate pixels within `spread` angular radii of the source
+        (red, green, blue) = _visual_color(self.temperature)
+        # illuminate pixels within ``spread`` angular radii of the source
         image = out.pencil(self.theta, self.phi, spread * self.angrad)
         (theta, phi) = image.angles
-        out[image.pindex] += self.brightness * numpy.exp(-0.5 * (
+        alpha = self.brightness * numpy.exp(-0.5 * (
             ((theta - self.theta) / self.angrad)**2 +
             ((phi - self.phi) / self.angrad)**2
         ))
+        # set RGBA color values
+        out[image.pindex, 0] = red
+        out[image.pindex, 1] = green
+        out[image.pindex, 2] = blue
+        out[image.pindex, 3] = alpha
         return out
 
 
@@ -210,6 +234,12 @@ class StarField(object):
     mbright : `float`, optional
         magnitude cutoff on the visually bright end, default: -2
 
+    tcool : `float`, optional
+        minimum stellar surface temperature, default: 2500
+
+    thot : `float`, optional
+        maximum stellar surface temperature, default: 50000
+
     Alternatively, the following parameters may also be specified by-hand:
 
     theta : `~numpy.ndarray`, optional
@@ -220,11 +250,11 @@ class StarField(object):
         azimuth coordinates (radians) of each star,
         required if ``theta`` is given
 
-    mag : `~numpy.ndarray`, optional
-        apparent visual magnitudes of each star
+    temperature : `float`, optional
+        surface temperature (Kelvin) of each star
 
     angrad : `~numpy.ndarray`, optional
-        apparent angular radius (arcminutes) of each star on the sky
+        apparent angular radius (arcminutes) of each star
 
     brightness : `~numpy.ndarray`, optional
         normalized values between 0 (dim) and 1 (bright) representing the
@@ -261,7 +291,8 @@ class StarField(object):
     Star
         an object class designed to handle individual stars in the field
     """
-    def __init__(self, nstars=1e4, mdim=6.5, mbright=-2, **kwargs):
+    def __init__(self, nstars=1e4, mdim=6.5, mbright=-2,
+                 tcool=2500, thot=5e4, **kwargs):
         """Initialize this `StarField`
         """
         nstars = int(nstars)
@@ -276,12 +307,15 @@ class StarField(object):
             (self.theta, self.phi) = _uniform_sphere(nstars)
         # visual properties
         self.size = len(self.theta)
-        self.mag = numpy.array(kwargs.pop(
+        self.temperature = numpy.array(kwargs.pop(
+            'temperature',
+            (thot - tcool) * rand(self.size) + tcool))
+        mag = numpy.array(kwargs.pop(
             'mag',
             (mdim - mbright) * rand(self.size) + mbright))
         self.brightness = numpy.array(kwargs.pop(
             'brightness',
-            _brightness_from_mag(self.mag)))
+            _brightness_from_mag(mag)))
         self.angrad = numpy.array(kwargs.pop(
             'angrad',
             ARCMIN * (5 * rand(self.size) + 1)))
@@ -293,7 +327,7 @@ class StarField(object):
         """
         # yield a `Star` for each row
         for row in self.table:
-            yield Star(row['theta'], row['phi'], row['mag'],
+            yield Star(row['theta'], row['phi'], row['temperature'],
                        row['angrad'], row['brightness'])
 
     @property
@@ -302,9 +336,9 @@ class StarField(object):
         """
         # record star properties
         return Table(
-            [self.theta, self.phi, self.mag,
+            [self.theta, self.phi, self.temperature,
              self.angrad, self.brightness],
-            names=('theta', 'phi', 'mag',
+            names=('theta', 'phi', 'temperature',
                    'angrad', 'brightness'),
         )
 
@@ -351,7 +385,7 @@ class StarField(object):
         return cls(
             theta=data['theta'],
             phi=data['phi'],
-            mag=data['mag'],
+            temperature=data['temperature'],
             angrad=data['angrad'],
             brightness=data['brightness'],
         )
@@ -436,13 +470,14 @@ class StarField(object):
             https://healpix.jpl.nasa.gov
         """
         nside = int(nside)
+        shape = (12 * nside**2, 4)
         # populate a map with star images
         out = SkyMap(
-            numpy.zeros(12 * nside**2),
+            numpy.zeros(shape),
             info=info,
             nest=nest,
         )
         for star in self:
             star.image(out, copy=False)
-        # return a `SkyMap` with saturated pixels
-        return out.saturate()
+        # return a `SkyMap` illustration
+        return out

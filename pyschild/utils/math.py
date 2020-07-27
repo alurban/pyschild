@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with PySchild.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Misc. utilities and convenience functions
+"""Utilities for sampling, linear algebra, and numerical formatting
 """
 
 import numpy

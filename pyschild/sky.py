@@ -47,7 +47,7 @@ class SkyMap(numpy.ndarray):
 
     pindex : `~numpy.ndarray`, optional
         if given, maps pixel values in ``value`` to their corresponding
-        pixel index, defaults to `~numpy.arange(value.size)`
+        pixel index, defaults to `~numpy.arange(len(value))`
 
     info : `str`, optional
         a brief description of this sky map, e.g. "All-sky map"
@@ -160,9 +160,9 @@ class SkyMap(numpy.ndarray):
         # set new attributes
         new.info = info
         new.nest = nest
-        new.nside = nside or healpy.npix2nside(new.size)
+        new.nside = nside or healpy.npix2nside(len(new))
         new.pindex = (pindex if pindex is not None
-                      else numpy.arange(new.size))
+                      else numpy.arange(len(new)))
         return new
 
     def __array_finalize__(self, obj):
@@ -171,11 +171,6 @@ class SkyMap(numpy.ndarray):
         # if an empty array, do nothing
         if numpy.size(obj) == 0:
             return
-
-        # if the array is not scalar or 1-dimensional, throw a fit
-        if len(numpy.shape(obj)) > 1:
-            raise ValueError("Only scalar or 1-dimensional data arrays "
-                             "are supported")
 
         # update metadata
         self.__metadata_finalize__(obj)
@@ -213,7 +208,7 @@ class SkyMap(numpy.ndarray):
         """Properly re-size indices/values when handling slices
         """
         new = super().__getitem__(key)
-        newindex = (self.pindex[key] if numpy.size(key) != self.size
+        newindex = (self.pindex[key] if len(key) != len(self)
                     else self.pindex)
         return type(self)(new, pindex=newindex, nside=self.nside,
                           info=self.info, nest=self.nest, dtype=self.dtype)
@@ -339,7 +334,7 @@ class SkyMap(numpy.ndarray):
         try:
             return self._nside
         except AttributeError:
-            self._nside = healpy.npix2nside(self.size)
+            self._nside = healpy.npix2nside(len(self))
             return self._nside
 
     @nside.setter
@@ -359,7 +354,7 @@ class SkyMap(numpy.ndarray):
         try:
             return self._pindex
         except AttributeError:
-            self._pindex = numpy.arange(self.size)[()]
+            self._pindex = numpy.arange(len(self))[()]
             return self._pindex
 
     @pindex.setter
@@ -385,7 +380,7 @@ class SkyMap(numpy.ndarray):
     def partial(self):
         """Determine whether this `SkyMap` covers only part of the sky
         """
-        return (self.size != self.npix)
+        return (len(self) != self.npix)
 
     @property
     def value(self):
@@ -450,7 +445,7 @@ class SkyMap(numpy.ndarray):
         This returns an instance of `~astropy.units.Quantity` with explicit
         units, which can then be converted by the user as-needed.
         """
-        return self.size * self.pixarea
+        return len(self) * self.pixarea
 
     @property
     def angles(self):
@@ -476,7 +471,7 @@ class SkyMap(numpy.ndarray):
 
         Because these are unit vectors, an element-wise quadrature sum
         will give unity, i.e. ``array([sqrt(x @ x) for x in directions])``
-        is functionally equivalent to `~numpy.ones(self.size)`.
+        is functionally equivalent to `~numpy.ones(len(self))`.
         """
         return numpy.array(
             healpy.pix2vec(self.nside,

@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with PySchild.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Unit tests for :mod:`pyschild.signal`
+"""Unit tests for :mod:`pyschild.utils.math`
 """
 
 import numpy
